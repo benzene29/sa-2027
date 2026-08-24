@@ -55,6 +55,7 @@ let pendingResave = false;
 
 let listenersBound = false;
 let pollTimer = null;
+let countdownTimer = null;
 let lastAppliedAt = null; // Date — newest trip_state.updated_at we've applied or saved ourselves
 
 function esc(s) {
@@ -145,6 +146,57 @@ function computeSchedule() {
   const grand = computeGrandTotal();
   const tripEnd = grand > 0 ? addDaysUTC(start, grand - 1) : start;
   return { stopDates, transitDates, regionSpans, valid: true, tripStart: start, tripEnd };
+}
+
+function computeCountdownParts() {
+  const target = parseISODate(state.startDate);
+  if (!target) return { valid: false };
+  const diff = target.getTime() - Date.now();
+  if (diff <= 0) return { valid: true, started: true };
+  const totalSeconds = Math.floor(diff / 1000);
+  return {
+    valid: true,
+    started: false,
+    days: Math.floor(totalSeconds / 86400),
+    hours: Math.floor((totalSeconds % 86400) / 3600),
+    minutes: Math.floor((totalSeconds % 3600) / 60),
+    seconds: totalSeconds % 60,
+  };
+}
+
+function countdownDisplay() {
+  const p = computeCountdownParts();
+  if (!p.valid) return { vals: { days: '–', hours: '–', minutes: '–', seconds: '–' }, note: 'Set a start date below to start the countdown' };
+  if (p.started) return { vals: { days: 0, hours: 0, minutes: 0, seconds: 0 }, note: 'Bon voyage — the trip is underway!' };
+  return { vals: { days: p.days, hours: p.hours, minutes: p.minutes, seconds: p.seconds }, note: '' };
+}
+
+const COUNTDOWN_UNITS = ['days', 'hours', 'minutes', 'seconds'];
+
+function renderCountdown() {
+  const { vals, note } = countdownDisplay();
+  return '<section class="countdown-panel">' +
+    '<div class="countdown-eyebrow">Countdown to departure</div>' +
+    '<div class="countdown-figures" id="countdownFigures">' +
+      COUNTDOWN_UNITS.map((unit) =>
+        '<div class="countdown-unit"><span class="countdown-num" data-cd="' + unit + '">' + esc(vals[unit]) + '</span>' +
+          '<span class="countdown-unit-label">' + unit + '</span></div>'
+      ).join('') +
+    '</div>' +
+    '<div class="countdown-note" id="countdownNote">' + esc(note) + '</div>' +
+  '</section>';
+}
+
+function tickCountdown() {
+  const figuresEl = document.getElementById('countdownFigures');
+  if (!figuresEl) return;
+  const { vals, note } = countdownDisplay();
+  COUNTDOWN_UNITS.forEach((unit) => {
+    const el = figuresEl.querySelector('[data-cd="' + unit + '"]');
+    if (el) el.textContent = vals[unit];
+  });
+  const noteEl = document.getElementById('countdownNote');
+  if (noteEl) noteEl.textContent = note;
 }
 
 const VOTE_CHOICES = ['yes', 'maybe', 'no'];
@@ -488,6 +540,7 @@ function renderApp() {
         '<input type="text" id="displayNameInput" maxlength="24" value="' + esc(myDisplayName()) + '"> on the vote buttons below.' +
         '<button type="button" class="link-btn" id="signOutBtn">Sign out</button></div>' +
     '</header>' +
+    renderCountdown() +
     '<div class="budget-panel">' +
       '<div class="budget-row"><span class="budget-label">Trip budget: <input id="budgetInput" class="budget-total-input" type="number" min="1" value="' + esc(budget) + '"> days</span>' +
       '<span id="budgetFigure" class="budget-figure ' + (over ? 'over' : 'under') + '">' + grand + ' / ' + budget + ' days</span></div>' +
@@ -1257,10 +1310,15 @@ export async function startApp(container, user, onSignOut) {
   setSyncStatus('Live shared plan');
   updateSaveButton('idle');
   startPolling();
+
+  clearInterval(countdownTimer);
+  countdownTimer = setInterval(tickCountdown, 1000);
 }
 
 export function stopApp() {
   stopPolling();
+  clearInterval(countdownTimer);
+  countdownTimer = null;
   if (scrollFocusObserver) { scrollFocusObserver.disconnect(); scrollFocusObserver = null; }
   if (followRaf) { cancelAnimationFrame(followRaf); followRaf = null; }
   clearTimeout(userInteractTimer);
