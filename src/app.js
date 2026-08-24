@@ -32,6 +32,7 @@ let profiles = {}; // uid -> display name
 
 let placingKey = null;
 let dragState = null;
+let stopDragState = null;
 let saveTimer = null;
 let saving = false;
 let pendingResave = false;
@@ -154,7 +155,11 @@ function renderStop(stop, schedule) {
   const deleteBtn = stop.locked ? '' : '<button type="button" class="link-btn danger" data-delete>Remove</button>';
   const dateInfo = schedule.valid ? schedule.stopDates[stop.id] : null;
   const dateText = dateInfo ? fmtRange(dateInfo.start, dateInfo.end) : '';
+  const handle = stop.locked
+    ? '<span class="stop-handle locked" aria-hidden="true"></span>'
+    : '<span class="stop-handle" aria-hidden="true" title="Drag to reorder">⠿</span>';
   return '<div class="stop' + excludedClass + '" data-key="' + esc(stop.id) + '">' +
+    handle +
     '<input type="checkbox" data-toggle' + checked + (stop.locked ? ' disabled' : '') + '>' +
     '<div>' +
       '<div class="stop-name editable" contenteditable="true" data-placeholder="Name this activity…">' + esc(stop.name) + '</div>' +
@@ -276,6 +281,78 @@ function onChipPointerUp() {
       c.style.transform = '';
     });
   }
+}
+
+function onStopPointerDown(e) {
+  const handle = e.target.closest('.stop-handle');
+  if (!handle || handle.classList.contains('locked')) return;
+  const stopEl = handle.closest('.stop');
+  const regionEl = stopEl.closest('.region');
+  const regionIdx = parseInt(regionEl.dataset.regionIdx, 10);
+  const region = state.regions[regionIdx];
+  const idx = region.stops.findIndex((s) => s.id === stopEl.dataset.key);
+  if (idx === -1) return;
+  stopDragState = {
+    regionIdx,
+    stop: region.stops[idx],
+    stopEl,
+    startY: e.clientY,
+    targetIdx: idx,
+  };
+  stopEl.classList.add('dragging');
+  try { handle.setPointerCapture(e.pointerId); } catch (err) {}
+  e.preventDefault();
+}
+
+function onStopPointerMove(e) {
+  if (!stopDragState) return;
+  stopDragState.stopEl.style.transform = 'translateY(' + (e.clientY - stopDragState.startY) + 'px)';
+  const el = document.elementFromPoint(e.clientX, e.clientY);
+  const overStopEl = el ? el.closest('.stop') : null;
+  const regionEl = document.querySelector('.region[data-region-idx="' + stopDragState.regionIdx + '"]');
+  document.querySelectorAll('.stop').forEach((s) => s.classList.remove('drop-target'));
+  if (overStopEl && overStopEl !== stopDragState.stopEl && regionEl && regionEl.contains(overStopEl)) {
+    const region = state.regions[stopDragState.regionIdx];
+    const overIdx = region.stops.findIndex((s) => s.id === overStopEl.dataset.key);
+    if (overIdx > -1 && !region.stops[overIdx].locked) {
+      stopDragState.targetIdx = overIdx;
+      overStopEl.classList.add('drop-target');
+    }
+  }
+}
+
+function onStopPointerUp() {
+  if (!stopDragState) return;
+  const { regionIdx, stop, targetIdx } = stopDragState;
+  stopDragState = null;
+  const region = state.regions[regionIdx];
+  const fromIdx = region.stops.indexOf(stop);
+  if (fromIdx > -1 && targetIdx > -1 && fromIdx !== targetIdx) {
+    region.stops.splice(fromIdx, 1);
+    region.stops.splice(targetIdx, 0, stop);
+    renderApp();
+    scheduleSave();
+  } else {
+    document.querySelectorAll('.stop').forEach((s) => {
+      s.classList.remove('dragging', 'drop-target');
+      s.style.transform = '';
+    });
+  }
+}
+
+function onPointerDown(e) {
+  if (e.target.closest('.chip-handle')) { onChipPointerDown(e); return; }
+  if (e.target.closest('.stop-handle')) { onStopPointerDown(e); return; }
+}
+
+function onPointerMove(e) {
+  if (dragState) { onChipPointerMove(e); return; }
+  if (stopDragState) { onStopPointerMove(e); return; }
+}
+
+function onPointerUp(e) {
+  if (dragState) { onChipPointerUp(e); return; }
+  if (stopDragState) { onStopPointerUp(e); return; }
 }
 
 function renderPins() {
@@ -788,10 +865,10 @@ function bindListeners() {
   app.addEventListener('input', onInput);
   app.addEventListener('click', onClick);
   app.addEventListener('keydown', onKeydown);
-  app.addEventListener('pointerdown', onChipPointerDown);
-  app.addEventListener('pointermove', onChipPointerMove);
-  app.addEventListener('pointerup', onChipPointerUp);
-  app.addEventListener('pointercancel', onChipPointerUp);
+  app.addEventListener('pointerdown', onPointerDown);
+  app.addEventListener('pointermove', onPointerMove);
+  app.addEventListener('pointerup', onPointerUp);
+  app.addEventListener('pointercancel', onPointerUp);
   window.addEventListener('beforeunload', () => {
     if (saveTimer) doSave();
   });
