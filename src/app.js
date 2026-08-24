@@ -912,9 +912,13 @@ function bindListeners() {
   app.addEventListener('click', onClick);
   app.addEventListener('keydown', onKeydown);
   app.addEventListener('pointerdown', onPointerDown);
-  app.addEventListener('pointermove', onPointerMove);
-  app.addEventListener('pointerup', onPointerUp);
-  app.addEventListener('pointercancel', onPointerUp);
+  // move/up listen on window, not app: a grabbed stop is reparented to <body>
+  // for the duration of the drag (see onStopPointerDown), which takes it out
+  // of app's subtree — events would stop bubbling to an app-scoped listener.
+  window.addEventListener('pointermove', onPointerMove);
+  window.addEventListener('pointerup', onPointerUp);
+  window.addEventListener('pointercancel', onPointerUp);
+  window.addEventListener('lostpointercapture', onPointerUp);
   window.addEventListener('beforeunload', () => {
     if (saveTimer) doSave();
   });
