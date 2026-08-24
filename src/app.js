@@ -215,6 +215,46 @@ function tickCountdown() {
 const VOTE_CHOICES = ['yes', 'maybe', 'no'];
 const VOTE_LABELS = { yes: 'Yes', maybe: 'Maybe', no: 'No' };
 
+const TRAVEL_MODES = [
+  { value: '', label: 'Mode…' },
+  { value: 'flight', label: '✈ Flight' },
+  { value: 'bus', label: '🚌 Bus' },
+  { value: 'car', label: '🚗 Car' },
+  { value: 'train', label: '🚆 Train' },
+  { value: 'ferry', label: '⛴ Ferry' },
+  { value: 'walk', label: '🚶 Walk' },
+  { value: 'other', label: 'Other' },
+];
+
+// Ensures every stop after the first in a region carries a travelBefore
+// object (and the first never does) — covers stops loaded from before this
+// field existed, and re-establishes it after adds/removes/reorders.
+function normalizeTravel(region) {
+  region.stops.forEach((s, i) => {
+    if (i === 0) {
+      s.travelBefore = null;
+    } else if (!s.travelBefore) {
+      s.travelBefore = { mode: '', duration: '', note: '' };
+    }
+  });
+}
+
+function normalizeAllTravel() {
+  state.regions.forEach(normalizeTravel);
+}
+
+function renderTravel(stop) {
+  const t = stop.travelBefore;
+  if (!t) return '';
+  return '<div class="travel" data-key="' + esc(stop.id) + '">' +
+    '<select class="travel-mode" data-travel-mode>' +
+      TRAVEL_MODES.map((o) => '<option value="' + o.value + '"' + (t.mode === o.value ? ' selected' : '') + '>' + o.label + '</option>').join('') +
+    '</select>' +
+    '<input type="text" class="travel-duration" data-travel-duration placeholder="Time…" value="' + esc(t.duration) + '">' +
+    '<span class="travel-note editable" contenteditable="true" data-placeholder="Travel notes…" data-travel-note>' + esc(t.note) + '</span>' +
+  '</div>';
+}
+
 function renderVotes(stop) {
   const votes = state.votes[stop.id] || {};
   const myUid = currentUser.id;
@@ -281,7 +321,7 @@ function renderRegionBlock(region, idx, schedule) {
       '<div class="region-actions"><span class="region-tally"><b data-tally>' + regionTotal + '</b> days</span>' +
         '<span class="region-dates" data-region-dates>' + esc(regionDateText) + '</span>' + delRegionBtn + '</div>' +
     '</div>' +
-    '<div class="stops">' + region.stops.map((s) => renderStop(s, schedule)).join('') +
+    '<div class="stops">' + region.stops.map((s) => renderTravel(s) + renderStop(s, schedule)).join('') +
       '<button type="button" class="add-stop-btn" data-add-stop>+ Add activity</button>' +
     '</div>' +
   '</section>';
@@ -500,6 +540,7 @@ function onStopPointerUp() {
   const targetIdx = Math.min(d.minIdx + d.currentIdx, others.length);
   others.splice(targetIdx, 0, d.stop);
   d.region.stops = others;
+  normalizeTravel(d.region);
 
   renderApp();
   if (fromIdx !== targetIdx) scheduleSave();
@@ -922,6 +963,7 @@ function addStop(regionIdx) {
   if (!region) return;
   const key = uid('stop');
   region.stops.push({ id: key, name: 'New activity', note: '', noteText: '', days: 1, included: true, locked: false });
+  normalizeTravel(region);
   renderApp();
   scheduleSave();
   const nameEl = document.querySelector('.stop[data-key="' + key + '"] .stop-name');
@@ -931,7 +973,7 @@ function addStop(regionIdx) {
 function removeStop(key) {
   for (const region of state.regions) {
     const idx = region.stops.findIndex((s) => s.id === key);
-    if (idx > -1) { region.stops.splice(idx, 1); break; }
+    if (idx > -1) { region.stops.splice(idx, 1); normalizeTravel(region); break; }
   }
   delete state.pins[key];
   delete state.votes[key];
@@ -996,6 +1038,15 @@ function onChange(e) {
     if (dayInput) dayInput.disabled = !found.stop.included;
     recomputeDerived();
     scheduleSave();
+    return;
+  }
+  if (e.target.matches('[data-travel-mode]')) {
+    const key = e.target.closest('.travel').dataset.key;
+    const found = findStopByKey(key);
+    if (found && found.stop.travelBefore) {
+      found.stop.travelBefore.mode = e.target.value;
+      scheduleSave();
+    }
   }
 }
 
@@ -1074,6 +1125,18 @@ function onInput(e) {
     const tidx = parseInt(t.closest('.transit').dataset.regionIdx, 10);
     if (state.regions[tidx] && state.regions[tidx].transitBefore) state.regions[tidx].transitBefore.label = t.textContent;
     scheduleSave(); return;
+  }
+  if (t.matches('[data-travel-duration]')) {
+    const key = t.closest('.travel').dataset.key;
+    const found = findStopByKey(key);
+    if (found && found.stop.travelBefore) { found.stop.travelBefore.duration = t.value; scheduleSave(); }
+    return;
+  }
+  if (t.matches('.travel-note.editable')) {
+    const key = t.closest('.travel').dataset.key;
+    const found = findStopByKey(key);
+    if (found && found.stop.travelBefore) { found.stop.travelBefore.note = t.textContent; scheduleSave(); }
+    return;
   }
 }
 
@@ -1230,6 +1293,7 @@ async function loadTripState() {
   }
   if (!state.votes) state.votes = {};
   if (!state.pins) state.pins = {};
+  normalizeAllTravel();
 }
 
 // True while the person is actively typing/editing something in the app —
@@ -1269,6 +1333,7 @@ async function pollForUpdates() {
         state = row.data;
         if (!state.votes) state.votes = {};
         if (!state.pins) state.pins = {};
+        normalizeAllTravel();
         changed = true;
       }
     }
