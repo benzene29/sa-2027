@@ -455,13 +455,15 @@ function renderApp() {
           '<button type="button" class="link-btn map-reset-btn hidden" data-zoom-reset>Reset view</button>' +
         '</div>' +
         '<div class="map-viewport" id="mapViewport">' +
-          '<div class="map-stage" id="mapStage">' +
-            '<svg class="map-bg" viewBox="' + MAP_VIEWBOX_STR + '" preserveAspectRatio="xMidYMid meet" aria-hidden="true">' +
-              COUNTRY_SHAPES.map((c) => '<path class="landmass-outline" d="' + c.d + '"/>').join('') +
-              COUNTRY_SHAPES.filter((c) => c.label).map((c) => '<text class="country-label" x="' + c.cx + '" y="' + c.cy + '">' + c.label + '</text>').join('') +
-            '</svg>' +
-            '<canvas class="map-route-canvas" id="mapRouteCanvas"></canvas>' +
-            renderPins() +
+          '<div class="map-frame" id="mapFrame">' +
+            '<div class="map-stage" id="mapStage">' +
+              '<svg class="map-bg" viewBox="' + MAP_VIEWBOX_STR + '" preserveAspectRatio="xMidYMid meet" aria-hidden="true">' +
+                COUNTRY_SHAPES.map((c) => '<path class="landmass-outline" d="' + c.d + '"/>').join('') +
+                COUNTRY_SHAPES.filter((c) => c.label).map((c) => '<text class="country-label" x="' + c.cx + '" y="' + c.cy + '">' + c.label + '</text>').join('') +
+              '</svg>' +
+              '<canvas class="map-route-canvas" id="mapRouteCanvas"></canvas>' +
+              renderPins() +
+            '</div>' +
           '</div>' +
         '</div>' +
         '<div id="placeBanner" class="place-banner"></div>' +
@@ -528,10 +530,11 @@ function clampMapPan() {
 }
 
 function applyMapTransform() {
-  const stage = document.getElementById('mapStage');
-  if (!stage) return;
-  stage.style.transform = 'translate(' + mapPanX + 'px,' + mapPanY + 'px) scale(' + mapZoom + ')';
-  stage.classList.toggle('zoomed', mapZoom > 1);
+  const frame = document.getElementById('mapFrame');
+  if (!frame) return;
+  frame.style.transform = 'translate(' + mapPanX + 'px,' + mapPanY + 'px) scale(' + mapZoom + ')';
+  const viewport = document.getElementById('mapViewport');
+  if (viewport) viewport.classList.toggle('zoomed', mapZoom > 1);
   const figure = document.getElementById('mapZoomFigure');
   if (figure) figure.textContent = Math.round(mapZoom * 100) + '%';
   const resetBtn = document.querySelector('[data-zoom-reset]');
@@ -592,8 +595,8 @@ function onMapPointerMove(e) {
   if (!d.moved) {
     if (Math.hypot(dx, dy) < 3) return;
     d.moved = true;
-    const stage = document.getElementById('mapStage');
-    if (stage) stage.classList.add('panning');
+    const viewport = document.getElementById('mapViewport');
+    if (viewport) viewport.classList.add('panning');
   }
   mapPanX = d.startPanX + dx;
   mapPanY = d.startPanY + dy;
@@ -604,8 +607,8 @@ function onMapPointerMove(e) {
 function onMapPointerUp() {
   if (!mapDragState) return;
   mapDragState = null;
-  const stage = document.getElementById('mapStage');
-  if (stage) stage.classList.remove('panning');
+  const viewport = document.getElementById('mapViewport');
+  if (viewport) viewport.classList.remove('panning');
 }
 
 function recomputeVoteHighlights() {
