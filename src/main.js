@@ -2,6 +2,9 @@ import './style.css';
 import { supabase } from './supabaseClient.js';
 import { renderAuthScreen, renderSetPasswordScreen, renderAuthLoading, watchAuth } from './auth.js';
 import { startApp, stopApp } from './app.js';
+import { initTheme } from './theme.js';
+
+initTheme();
 
 const app = document.getElementById('app');
 let resolved = false;
