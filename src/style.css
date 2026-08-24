@@ -1,19 +1,19 @@
 :root{
-  --paper: #F6EEDA; --paper-2: #EFE2BC; --ink: #1F2E2B; --ink-soft: #5C6B62;
-  --sienna: #E3A62F; --teal: #2F7A72; --gold: #C98A1D; --line: #E0D0A8;
-  --danger: #D6472A; --ok: #2F7A72; --card: #FBF6E8; --hover-tint: rgba(31,46,43,.05);
+  --paper: #F7F5F0; --paper-2: #EAE4D5; --ink: #1C2024; --ink-soft: #5B6069;
+  --sienna: #B23E0C; --teal: #0F766E; --gold: #8A5A00; --line: #DAD1BC;
+  --danger: #B3261E; --ok: #0F766E; --card: #FFFFFF; --hover-tint: rgba(28,32,36,.05);
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
-    --paper: #1B1710; --paper-2: #241F14; --ink: #F3E9CE; --ink-soft: #B7A788;
-    --sienna: #F0B94A; --teal: #4FA79C; --gold: #D9A63C; --line: #34301F;
-    --danger: #E86A4A; --ok: #4FA79C; --card: #221D14; --hover-tint: rgba(243,233,206,.06);
+    --paper: #14171C; --paper-2: #1E232B; --ink: #EDEFF2; --ink-soft: #A7AEBB;
+    --sienna: #FF8A50; --teal: #4FD1C5; --gold: #E8B94A; --line: #3A414B;
+    --danger: #FF6B5B; --ok: #4FD1C5; --card: #242B34; --hover-tint: rgba(237,239,242,.06);
   }
 }
 :root[data-theme="dark"]{
-  --paper: #1B1710; --paper-2: #241F14; --ink: #F3E9CE; --ink-soft: #B7A788;
-  --sienna: #F0B94A; --teal: #4FA79C; --gold: #D9A63C; --line: #34301F;
-  --danger: #E86A4A; --ok: #4FA79C; --card: #221D14; --hover-tint: rgba(243,233,206,.06);
+  --paper: #14171C; --paper-2: #1E232B; --ink: #EDEFF2; --ink-soft: #A7AEBB;
+  --sienna: #FF8A50; --teal: #4FD1C5; --gold: #E8B94A; --line: #3A414B;
+  --danger: #FF6B5B; --ok: #4FD1C5; --card: #242B34; --hover-tint: rgba(237,239,242,.06);
 }
 *{box-sizing:border-box;}
 html,body{background:var(--paper);}
@@ -171,7 +171,7 @@ section.region{position:relative;margin-bottom:6px;}
 .vote-btn .vote-count{font-family:'DM Mono',monospace;font-variant-numeric:tabular-nums;}
 .vote-btn.mine{border-width:1.5px;font-weight:500;}
 .vote-btn[data-vote="yes"].mine{background:var(--teal);color:var(--card);border-color:var(--teal);}
-.vote-btn[data-vote="maybe"].mine{background:var(--gold);color:var(--ink);border-color:var(--gold);}
+.vote-btn[data-vote="maybe"].mine{background:var(--gold);color:var(--card);border-color:var(--gold);}
 .vote-btn[data-vote="no"].mine{background:var(--danger);color:var(--card);border-color:var(--danger);}
 .who-row{margin-top:10px;font-size:12px;color:var(--ink-soft);}
 .who-row input{font-family:'Nunito Sans';font-size:12px;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:5px;padding:3px 8px;margin-left:4px;width:140px;}
