@@ -226,11 +226,10 @@ function renderRegionBlock(region, idx, schedule) {
 function renderChipRow() {
   return state.regions.map((region, idx) => {
     const pinned = !region.deletable;
-    const arrow = idx < state.regions.length - 1 ? '<span class="chip-arrow" aria-hidden="true">→</span>' : '';
     return '<div class="country-chip' + (pinned ? ' pinned' : '') + '" data-region-idx="' + idx + '" data-pinned="' + (pinned ? '1' : '0') + '">' +
       (pinned ? '' : '<span class="chip-handle" aria-hidden="true" title="Drag to reorder">⠿</span>') +
       '<span class="chip-label"><span class="chip-country">' + esc(region.country) + '</span><span class="chip-region">' + esc(region.name) + '</span></span>' +
-    '</div>' + arrow;
+    '</div>';
   }).join('');
 }
 
@@ -248,55 +247,94 @@ function fixTransitAdjacency(oldOrder) {
   });
 }
 
+function chipSiblings(d) {
+  return Array.prototype.slice.call(d.chipRowEl.children).filter((el) => el.classList.contains('country-chip') && el !== d.chipEl);
+}
+
 function onChipPointerDown(e) {
   const handle = e.target.closest('.chip-handle');
   if (!handle) return;
   const chipEl = handle.closest('.country-chip');
   if (!chipEl || chipEl.dataset.pinned === '1') return;
   const idx = parseInt(chipEl.dataset.regionIdx, 10);
+  const region = state.regions[idx];
+  if (!region) return;
+  let minIdx = 0;
+  while (minIdx < state.regions.length && !state.regions[minIdx].deletable) minIdx++;
+
+  const chipRowEl = chipEl.parentElement;
+  const rect = chipEl.getBoundingClientRect();
+
+  const gap = document.createElement('div');
+  gap.className = 'chip-gap';
+  gap.style.width = rect.width + 'px';
+  gap.style.height = rect.height + 'px';
+  chipRowEl.insertBefore(gap, chipEl);
+
+  document.body.appendChild(chipEl);
+  chipEl.classList.add('dragging');
+  chipEl.style.position = 'fixed';
+  chipEl.style.left = rect.left + 'px';
+  chipEl.style.top = rect.top + 'px';
+  chipEl.style.width = rect.width + 'px';
+  chipEl.style.zIndex = '60';
+  chipEl.style.pointerEvents = 'none'; // so elementFromPoint below hits the chip underneath, not the dragged one
+
   dragState = {
-    region: state.regions[idx],
-    chipEl,
-    startX: e.clientX,
-    targetIdx: idx,
+    region, chipEl, chipRowEl, gap, minIdx,
+    startClientX: e.clientX,
+    startClientY: e.clientY,
+    baseLeft: rect.left,
+    baseTop: rect.top,
+    currentIdx: Math.max(0, idx - minIdx),
     originalOrder: state.regions.slice(),
   };
-  chipEl.classList.add('dragging');
   try { handle.setPointerCapture(e.pointerId); } catch (err) {}
   e.preventDefault();
 }
 
 function onChipPointerMove(e) {
-  if (!dragState) return;
-  dragState.chipEl.style.transform = 'translateX(' + (e.clientX - dragState.startX) + 'px)';
+  const d = dragState;
+  if (!d) return;
+  d.chipEl.style.left = (d.baseLeft + (e.clientX - d.startClientX)) + 'px';
+  d.chipEl.style.top = (d.baseTop + (e.clientY - d.startClientY)) + 'px';
+
+  const siblings = chipSiblings(d); // real chips excluding the dragged one and the gap
   const el = document.elementFromPoint(e.clientX, e.clientY);
   const overChip = el ? el.closest('.country-chip') : null;
-  document.querySelectorAll('.country-chip').forEach((c) => c.classList.remove('drop-target'));
-  if (overChip && overChip !== dragState.chipEl && overChip.dataset.pinned === '0') {
-    dragState.targetIdx = parseInt(overChip.dataset.regionIdx, 10);
-    overChip.classList.add('drop-target');
-  }
+  if (!overChip || overChip.dataset.pinned === '1' || siblings.indexOf(overChip) === -1) return;
+  const overIdx = siblings.indexOf(overChip);
+  if (overIdx < d.minIdx) return;
+  const r = overChip.getBoundingClientRect();
+  const before = e.clientX < r.left + r.width / 2;
+  let idx = before ? overIdx - d.minIdx : overIdx - d.minIdx + 1;
+  idx = Math.max(0, Math.min(siblings.length - d.minIdx, idx));
+  if (idx === d.currentIdx) return;
+  d.currentIdx = idx;
+
+  flipMove(siblings, () => {
+    const beforeEl = siblings[d.minIdx + idx] || null;
+    d.chipRowEl.insertBefore(d.gap, beforeEl);
+  });
 }
 
 function onChipPointerUp() {
-  if (!dragState) return;
-  const region = dragState.region;
-  const targetIdx = dragState.targetIdx;
-  const originalOrder = dragState.originalOrder;
-  const fromIdx = state.regions.indexOf(region);
+  const d = dragState;
+  if (!d) return;
   dragState = null;
-  if (fromIdx > -1 && targetIdx > -1 && fromIdx !== targetIdx) {
-    state.regions.splice(fromIdx, 1);
-    state.regions.splice(targetIdx, 0, region);
-    fixTransitAdjacency(originalOrder);
-    renderApp();
-    scheduleSave();
-  } else {
-    document.querySelectorAll('.country-chip').forEach((c) => {
-      c.classList.remove('dragging', 'drop-target');
-      c.style.transform = '';
-    });
-  }
+  d.chipEl.remove();
+  d.gap.remove();
+
+  const fromIdx = state.regions.indexOf(d.region);
+  const others = state.regions.filter((r) => r !== d.region);
+  const targetIdx = Math.min(d.minIdx + d.currentIdx, others.length);
+  others.splice(targetIdx, 0, d.region);
+  const oldOrder = d.originalOrder;
+  state.regions = others;
+  if (fromIdx !== targetIdx) fixTransitAdjacency(oldOrder);
+
+  renderApp();
+  if (fromIdx !== targetIdx) scheduleSave();
 }
 
 // Animates the elements in `items` from wherever they were before `mutate()` ran
