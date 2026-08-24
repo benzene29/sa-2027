@@ -705,7 +705,8 @@ async function loadProfiles() {
   profiles = {};
   (data || []).forEach((p) => { profiles[p.id] = p.display_name; });
   if (!profiles[currentUser.id]) {
-    const fallback = (currentUser.email || '').split('@')[0];
+    const fallback = (currentUser.user_metadata && currentUser.user_metadata.full_name)
+      || (currentUser.email || '').split('@')[0];
     profiles[currentUser.id] = fallback;
     await supabase.from('profiles').upsert({ id: currentUser.id, display_name: fallback });
   }

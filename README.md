@@ -6,8 +6,10 @@ per-stop voting — now backed by Supabase (Postgres + Realtime + Auth) instead
 of the artifact's publish-a-copy mechanism, so it can be deployed and shared
 with a real URL.
 
-Everyone signs in with a magic link (their email, no password) and edits sync
-live to everyone else who has the page open.
+New mates enter their name and email, get a verification link, and set a
+password on first click — after that it's a normal email+password account
+(with a "forgot password" link for when it happens). Edits sync live to
+everyone else who has the page open.
 
 ## 1. Create the Supabase project
 
@@ -16,7 +18,7 @@ live to everyone else who has the page open.
    the `profiles` and `trip_state` tables, sets up row-level security, and
    turns on Realtime for both.
 3. Under **Authentication -> Providers**, confirm Email is enabled (it is by
-   default) — that's what sends the magic link.
+   default) — that's what sends the verification and password-reset links.
 4. Under **Authentication -> URL Configuration**, add the URLs you'll run the
    app from to **Redirect URLs** (and set **Site URL** to your main one):
    - `http://localhost:5173` for local dev
@@ -24,9 +26,9 @@ live to everyone else who has the page open.
 5. Under **Settings -> API**, copy the **Project URL** and the **anon public**
    key — you'll need both next.
 
-By default anyone who knows the app's URL can sign themselves in with any
-email. If you'd rather only your mates can get in, turn off "Allow new users
-to sign up" under Authentication settings and add each person manually under
+By default anyone who knows the app's URL can create their own account. If
+you'd rather only your mates can get in, turn off "Allow new users to sign
+up" under Authentication settings and add each person manually under
 Authentication -> Users instead.
 
 ## 2. Local development
@@ -49,14 +51,19 @@ npm run dev
    - `VITE_SUPABASE_ANON_KEY`
 4. Deploy. Then go back to Supabase's Auth URL Configuration (step 1.4) and
    add the resulting `*.vercel.app` URL if you haven't already.
-5. Share the Vercel URL with your mates — they sign in with their email and
-   they're in.
+5. Share the Vercel URL with your mates — they hit "Create one", enter their
+   name and email, click the link that shows up, set a password, and they're in.
 
 ## How it's put together
 
 - `src/app.js` — all the trip-planning UI and logic (route map, budget bar,
   drag-to-reorder, voting), ported near-verbatim from the original artifact.
-- `src/auth.js` / `src/main.js` — magic-link sign-in gate in front of the app.
+- `src/auth.js` / `src/main.js` — the sign-up / sign-in / set-password gate
+  in front of the app. Sign-up sends a verification link (via Supabase's
+  passwordless email flow) carrying the name they entered; clicking it signs
+  them in and routes them to a "set a password" screen before they see the
+  trip. Returning visits use ordinary email+password sign-in, with a
+  "forgot password" link that re-uses the same verify-then-set-password path.
 - `src/supabaseClient.js` — the Supabase client, reads its config from env vars.
 - `src/mapData.js` — the South America outline used to draw the route map.
 - `supabase/schema.sql` — the two tables (`trip_state`, `profiles`) and their
