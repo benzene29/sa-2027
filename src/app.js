@@ -17,6 +17,28 @@ const JET_ICON = '<svg class="jet-icon" viewBox="0 0 24 24" aria-hidden="true">'
   '<polygon points="13.7,15.8 15.4,20 13,18.2"/>' +
 '</svg>';
 
+// Retro travel-poster skyline (Andes silhouette + sun) sitting behind the
+// header text — purely decorative, sized by CSS to fill header.top.
+const HEADER_SKYLINE =
+  '<svg class="header-skyline" viewBox="0 0 900 200" preserveAspectRatio="none" aria-hidden="true">' +
+    '<circle class="skyline-sun" cx="790" cy="46" r="38"/>' +
+    '<polygon class="skyline-ridge skyline-ridge-back" points="0,200 0,150 70,110 140,145 220,80 300,135 380,70 460,130 540,75 620,140 700,95 780,150 860,110 900,135 900,200"/>' +
+    '<polygon class="skyline-ridge skyline-ridge-front" points="0,200 0,175 60,155 130,180 200,130 270,170 340,120 420,165 500,125 580,175 660,140 740,180 820,150 900,175 900,200"/>' +
+  '</svg>';
+
+// Compass-rose watermark for the corner of the map card.
+const COMPASS_ROSE =
+  '<svg class="compass-rose" viewBox="0 0 100 100" aria-hidden="true">' +
+    '<circle class="compass-ring" cx="50" cy="50" r="45"/>' +
+    '<line class="compass-tick" x1="50" y1="7" x2="50" y2="19"/>' +
+    '<line class="compass-tick" x1="50" y1="81" x2="50" y2="93"/>' +
+    '<line class="compass-tick" x1="7" y1="50" x2="19" y2="50"/>' +
+    '<line class="compass-tick" x1="81" y1="50" x2="93" y2="50"/>' +
+    '<polygon class="compass-needle" points="50,16 57,50 50,84 43,50"/>' +
+    '<circle class="compass-hub" cx="50" cy="50" r="3"/>' +
+    '<text class="compass-n" x="50" y="14" text-anchor="middle">N</text>' +
+  '</svg>';
+
 // Default trip content, carried over verbatim from the original artifact
 // (votes reset to {} since votes are now keyed by Supabase user id, not typed names).
 const DEFAULT_TRIP = {
@@ -176,7 +198,7 @@ const COUNTDOWN_UNITS = ['days', 'hours', 'minutes', 'seconds'];
 function renderCountdown() {
   const { vals, note } = countdownDisplay();
   return '<section class="countdown-panel">' +
-    '<div class="countdown-eyebrow">Countdown to departure</div>' +
+    '<div class="countdown-eyebrow">' + JET_ICON + 'Countdown to departure</div>' +
     '<div class="countdown-figures" id="countdownFigures">' +
       COUNTDOWN_UNITS.map((unit) =>
         '<div class="countdown-unit"><span class="countdown-num" data-cd="' + unit + '">' + esc(vals[unit]) + '</span>' +
@@ -533,6 +555,7 @@ function renderApp() {
     : 'Set a start date to see the calendar';
   app.innerHTML =
     '<header class="top">' +
+      HEADER_SKYLINE +
       '<div class="eyebrow-row"><span class="eyebrow">Andes → Patagonia → Atlantic</span><span class="sync-badge" id="syncBadge">Live shared plan</span></div>' +
       '<h1 id="tripTitle" contenteditable="true" spellcheck="false">' + esc(state.title) + '</h1>' +
       '<p class="sub" id="tripSub" contenteditable="true" spellcheck="false">' + esc(state.sub) + '</p>' +
@@ -574,13 +597,17 @@ function renderApp() {
           '</div>' +
         '</div>' +
         '<div id="placeBanner" class="place-banner"></div>' +
+        COMPASS_ROSE +
       '</div>' +
     '</section>' +
     '<div class="trail" id="trail">' +
       state.regions.map((r, i) => renderRegionBlock(r, i, schedule)).join('') +
       '<div class="add-country-row"><button type="button" class="add-country-btn" data-add-country>+ Add country</button></div>' +
     '</div>' +
-    '<footer class="note">Day counts are starting estimates, not bookings — nudge them as you research. Transit days are rough guesses for flight/bus days including connections; pad them if you\'re not booking the tightest possible layover. Every checkbox, day count, note, added stop, and map pin here is shared — anyone signed in sees your changes live, and you\'ll see theirs.</footer>';
+    '<footer class="note">' +
+      '<div class="footer-ornament" aria-hidden="true"><span class="footer-line"></span>' + JET_ICON + '<span class="footer-line"></span></div>' +
+      'Day counts are starting estimates, not bookings — nudge them as you research. Transit days are rough guesses for flight/bus days including connections; pad them if you\'re not booking the tightest possible layover. Every checkbox, day count, note, added stop, and map pin here is shared — anyone signed in sees your changes live, and you\'ll see theirs.' +
+    '</footer>';
   applyMapTransform();
   setupScrollFocus();
 }

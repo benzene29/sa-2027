@@ -51,6 +51,10 @@ header.top::before{
   background:repeating-conic-gradient(from 0deg, var(--sienna) 0deg 1deg, transparent 1deg 13deg);
   opacity:.16;border-radius:50%;z-index:-1;pointer-events:none;
 }
+.header-skyline{position:absolute;left:0;right:0;bottom:-8px;width:100%;height:130px;z-index:-1;pointer-events:none;}
+.skyline-sun{fill:var(--gold);opacity:.3;}
+.skyline-ridge-back{fill:var(--teal);opacity:.13;}
+.skyline-ridge-front{fill:var(--sienna);opacity:.16;}
 .eyebrow-row{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;}
 .eyebrow{font-family:'DM Mono',monospace;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--sienna);}
 .sync-badge{display:inline-flex;align-items:center;gap:6px;font-family:'DM Mono',monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--teal);}
@@ -66,9 +70,20 @@ h1{font-family:'Jost',sans-serif;font-weight:700;font-size:clamp(28px,4vw,40px);
 .editable:empty::before{content:attr(data-placeholder);color:var(--ink-soft);opacity:.6;}
 .countdown-panel{
   grid-area:countdown;background:var(--card);border:2px solid var(--ink);border-radius:10px;
-  padding:22px 16px 18px 16px;margin-bottom:28px;text-align:center;position:relative;overflow:hidden;
+  padding:22px 16px 18px 16px;margin-bottom:28px;text-align:center;position:relative;
 }
-.countdown-eyebrow{font-family:'DM Mono',monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--sienna);margin-bottom:14px;}
+.countdown-panel::before, .countdown-panel::after{
+  content:"";position:absolute;top:50%;width:22px;height:22px;margin-top:-11px;
+  border-radius:50%;background:var(--paper);border:2px solid var(--ink);
+}
+.countdown-panel::before{left:-13px;}
+.countdown-panel::after{right:-13px;}
+.countdown-eyebrow{
+  font-family:'DM Mono',monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--sienna);
+  margin-bottom:14px;padding-bottom:12px;border-bottom:1px dashed var(--line);
+  display:flex;align-items:center;justify-content:center;gap:6px;
+}
+.countdown-eyebrow .jet-icon{width:13px;height:13px;}
 .countdown-figures{display:flex;align-items:baseline;justify-content:center;gap:clamp(14px,4vw,36px);flex-wrap:wrap;}
 .countdown-unit{display:flex;flex-direction:column;align-items:center;min-width:56px;}
 .countdown-num{font-family:'Jost',sans-serif;font-weight:800;font-size:clamp(36px,7vw,68px);line-height:1;color:var(--ink);font-variant-numeric:tabular-nums;}
@@ -145,6 +160,12 @@ h1{font-family:'Jost',sans-serif;font-weight:700;font-size:clamp(28px,4vw,40px);
 .pin:hover .pin-label, .pin:focus .pin-label{opacity:1;}
 .place-banner{display:none;position:absolute;left:50%;bottom:10px;transform:translateX(-50%);background:var(--ink);color:var(--paper);font-size:12px;padding:6px 12px;border-radius:6px;white-space:nowrap;max-width:90%;overflow:hidden;text-overflow:ellipsis;z-index:3;}
 .place-banner.show{display:block;}
+.compass-rose{position:absolute;right:14px;bottom:14px;width:54px;height:54px;opacity:.4;pointer-events:none;}
+.compass-ring{fill:none;stroke:var(--ink-soft);stroke-width:2;}
+.compass-tick{stroke:var(--ink-soft);stroke-width:2;}
+.compass-needle{fill:var(--sienna);}
+.compass-hub{fill:var(--ink);}
+.compass-n{font-family:'DM Mono',monospace;font-size:11px;fill:var(--ink-soft);}
 .trail{grid-area:trail;position:relative;padding-left:26px;}
 .trail::before{content:"";position:absolute;left:6px;top:6px;bottom:6px;width:0;border-left:2px dashed var(--line);}
 section.region{position:relative;margin-bottom:6px;}
@@ -212,6 +233,9 @@ section.region{position:relative;margin-bottom:6px;}
 .add-country-btn{width:100%;background:var(--card);border:1px dashed var(--line);border-radius:10px;padding:14px 16px;font-family:'DM Mono',monospace;font-size:13px;letter-spacing:.04em;color:var(--sienna);cursor:pointer;text-align:center;}
 .add-country-btn:hover{background:var(--hover-tint);border-color:var(--sienna);}
 footer.note{grid-area:footer;margin-top:36px;padding-top:18px;border-top:1px solid var(--line);font-size:12.5px;color:var(--ink-soft);max-width:60ch;line-height:1.6;}
+.footer-ornament{display:flex;align-items:center;gap:10px;margin-bottom:14px;max-width:60ch;}
+.footer-ornament .footer-line{flex:1;height:0;border-top:1px dashed var(--line);}
+.footer-ornament .jet-icon{width:13px;height:13px;opacity:.7;flex:0 0 auto;}
 .theme-toggle-btn{
   position:fixed;right:20px;top:20px;z-index:45;width:38px;height:38px;border-radius:50%;
   border:1px solid var(--line);background:var(--card);color:var(--ink);font-size:16px;line-height:1;
