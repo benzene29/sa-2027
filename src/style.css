@@ -26,7 +26,7 @@ body{margin:0;background:var(--paper);color:var(--ink);font-family:'IBM Plex San
 @media (min-width:980px){
   .wrap{
     max-width:1200px;column-gap:44px;align-items:start;
-    grid-template-columns:minmax(0,1fr) 380px;
+    grid-template-columns:minmax(0,1fr) minmax(0,1fr);
     grid-template-areas:
       "header header"
       "budget budget"

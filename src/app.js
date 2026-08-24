@@ -631,7 +631,7 @@ function onMapPointerUp() {
 // view has one. It's a personal viewing convenience like manual zoom/pan,
 // so it never touches `state` or fights a person who's manually zooming.
 const AUTO_FOCUS_ZOOM = 2.6;
-const FOLLOW_EASE = 0.12; // per-frame lerp fraction toward the target — the "inertia"
+const FOLLOW_EASE = 0.045; // per-frame lerp fraction toward the target — lower = more inertia, slower to catch up
 const USER_INTERACT_GRACE_MS = 1500;
 let scrollFocusObserver = null;
 let focusStopKey = null;
@@ -677,11 +677,8 @@ function computeFocusTransform(key) {
 
 function currentFollowTarget() {
   if (userMapInteracting || !isDesktopLayout()) return null;
-  if (focusStopKey) {
-    const t = computeFocusTransform(focusStopKey);
-    if (t) return t;
-  }
-  return { panX: 0, panY: 0, zoom: 1 };
+  if (!focusStopKey) return null; // nothing centered — hold the view where it is, don't zoom back out
+  return computeFocusTransform(focusStopKey);
 }
 
 function stepFollow() {
