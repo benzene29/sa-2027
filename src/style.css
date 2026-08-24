@@ -62,7 +62,16 @@ h1{font-family:'Fraunces',serif;font-weight:700;font-size:clamp(28px,4vw,40px);m
 .map-title{font-family:'Fraunces',serif;font-weight:600;font-size:19px;margin:0 0 4px 0;}
 .map-hint{font-size:12.5px;color:var(--ink-soft);margin:0;max-width:62ch;line-height:1.5;}
 .map-card{position:relative;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;}
-.map-stage{position:relative;width:100%;max-width:440px;aspect-ratio:552.75/836.59;margin:0 auto;}
+.map-toolbar{display:flex;align-items:center;gap:8px;margin-bottom:12px;max-width:440px;margin-left:auto;margin-right:auto;}
+.map-zoom-btn{width:26px;height:26px;border-radius:6px;border:1px solid var(--line);background:var(--paper);color:var(--ink);font-family:'IBM Plex Mono',monospace;font-size:15px;line-height:1;cursor:pointer;}
+.map-zoom-btn:hover{border-color:var(--sienna);}
+.map-zoom-figure{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-soft);min-width:36px;text-align:center;font-variant-numeric:tabular-nums;}
+.map-reset-btn{margin-left:auto;}
+.map-reset-btn.hidden{display:none;}
+.map-viewport{position:relative;width:100%;max-width:440px;aspect-ratio:552.75/836.59;margin:0 auto;overflow:hidden;border-radius:8px;touch-action:none;}
+.map-stage{position:absolute;inset:0;width:100%;height:100%;transform-origin:0 0;cursor:default;}
+.map-stage.zoomed{cursor:grab;}
+.map-stage.panning{cursor:grabbing;}
 .map-stage.placing{cursor:crosshair;}
 .map-bg{position:absolute;inset:0;width:100%;height:100%;display:block;}
 .landmass-outline{fill:var(--paper-2);stroke:var(--line);stroke-width:1.3;}

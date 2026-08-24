@@ -389,16 +389,19 @@ function onStopPointerUp() {
 function onPointerDown(e) {
   if (e.target.closest('.chip-handle')) { onChipPointerDown(e); return; }
   if (e.target.closest('.stop-handle')) { onStopPointerDown(e); return; }
+  if (e.target.closest('#mapViewport')) { onMapPointerDown(e); return; }
 }
 
 function onPointerMove(e) {
   if (dragState) { onChipPointerMove(e); return; }
   if (stopDragState) { onStopPointerMove(e); return; }
+  if (mapDragState) { onMapPointerMove(e); return; }
 }
 
 function onPointerUp(e) {
   if (dragState) { onChipPointerUp(e); return; }
   if (stopDragState) { onStopPointerUp(e); return; }
+  if (mapDragState) { onMapPointerUp(e); return; }
 }
 
 function renderPins() {
@@ -443,22 +446,33 @@ function renderApp() {
       '<div class="chip-row" id="chipRow">' + renderChipRow() + '</div>' +
     '</section>' +
     '<section class="map-section">' +
-      '<div class="map-head"><h2 class="map-title">Route map</h2><p class="map-hint">Click "Place on map" on a stop below, then click the map to drop its pin — works for stops you add too. Click a placed pin to jump to it in the list.</p></div>' +
-      '<div class="map-card"><div class="map-stage" id="mapStage">' +
-        '<svg class="map-bg" viewBox="' + MAP_VIEWBOX_STR + '" preserveAspectRatio="xMidYMid meet" aria-hidden="true">' +
-          COUNTRY_SHAPES.map((c) => '<path class="landmass-outline" d="' + c.d + '"/>').join('') +
-          COUNTRY_SHAPES.filter((c) => c.label).map((c) => '<text class="country-label" x="' + c.cx + '" y="' + c.cy + '">' + c.label + '</text>').join('') +
-        '</svg>' +
-        '<canvas class="map-route-canvas" id="mapRouteCanvas"></canvas>' +
-        renderPins() +
-      '</div><div id="placeBanner" class="place-banner"></div></div>' +
+      '<div class="map-head"><h2 class="map-title">Route map</h2><p class="map-hint">Click "Place on map" on a stop below, then click the map to drop its pin — works for stops you add too. Click a placed pin to jump to it in the list. Scroll or use the buttons to zoom, drag to pan once zoomed in.</p></div>' +
+      '<div class="map-card">' +
+        '<div class="map-toolbar">' +
+          '<button type="button" class="map-zoom-btn" data-zoom-out aria-label="Zoom out">−</button>' +
+          '<span class="map-zoom-figure" id="mapZoomFigure">100%</span>' +
+          '<button type="button" class="map-zoom-btn" data-zoom-in aria-label="Zoom in">+</button>' +
+          '<button type="button" class="link-btn map-reset-btn hidden" data-zoom-reset>Reset view</button>' +
+        '</div>' +
+        '<div class="map-viewport" id="mapViewport">' +
+          '<div class="map-stage" id="mapStage">' +
+            '<svg class="map-bg" viewBox="' + MAP_VIEWBOX_STR + '" preserveAspectRatio="xMidYMid meet" aria-hidden="true">' +
+              COUNTRY_SHAPES.map((c) => '<path class="landmass-outline" d="' + c.d + '"/>').join('') +
+              COUNTRY_SHAPES.filter((c) => c.label).map((c) => '<text class="country-label" x="' + c.cx + '" y="' + c.cy + '">' + c.label + '</text>').join('') +
+            '</svg>' +
+            '<canvas class="map-route-canvas" id="mapRouteCanvas"></canvas>' +
+            renderPins() +
+          '</div>' +
+        '</div>' +
+        '<div id="placeBanner" class="place-banner"></div>' +
+      '</div>' +
     '</section>' +
     '<div class="trail" id="trail">' +
       state.regions.map((r, i) => renderRegionBlock(r, i, schedule)).join('') +
       '<div class="add-country-row"><button type="button" class="add-country-btn" data-add-country>+ Add country</button></div>' +
     '</div>' +
     '<footer class="note">Day counts are starting estimates, not bookings — nudge them as you research. Transit days are rough guesses for flight/bus days including connections; pad them if you\'re not booking the tightest possible layover. Every checkbox, day count, note, added stop, and map pin here is shared — anyone signed in sees your changes live, and you\'ll see theirs.</footer>';
-  drawRoute();
+  applyMapTransform();
 }
 
 function drawRoute() {
@@ -492,6 +506,106 @@ function drawRoute() {
     for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
     ctx.stroke();
   }
+}
+
+// Map zoom/pan is a personal viewing convenience, not trip data — kept out of
+// `state` entirely so it never syncs or gets saved.
+const MAP_ZOOM_MIN = 1;
+const MAP_ZOOM_MAX = 4;
+let mapZoom = 1;
+let mapPanX = 0;
+let mapPanY = 0;
+let mapDragState = null;
+
+function clampMapPan() {
+  const vp = document.getElementById('mapViewport');
+  if (!vp) return;
+  const w = vp.clientWidth, h = vp.clientHeight;
+  const minX = Math.min(0, w * (1 - mapZoom));
+  const minY = Math.min(0, h * (1 - mapZoom));
+  mapPanX = Math.max(minX, Math.min(0, mapPanX));
+  mapPanY = Math.max(minY, Math.min(0, mapPanY));
+}
+
+function applyMapTransform() {
+  const stage = document.getElementById('mapStage');
+  if (!stage) return;
+  stage.style.transform = 'translate(' + mapPanX + 'px,' + mapPanY + 'px) scale(' + mapZoom + ')';
+  stage.classList.toggle('zoomed', mapZoom > 1);
+  const figure = document.getElementById('mapZoomFigure');
+  if (figure) figure.textContent = Math.round(mapZoom * 100) + '%';
+  const resetBtn = document.querySelector('[data-zoom-reset]');
+  if (resetBtn) resetBtn.classList.toggle('hidden', mapZoom === 1 && mapPanX === 0 && mapPanY === 0);
+  drawRoute();
+}
+
+function zoomMapBy(factor, originX, originY) {
+  const vp = document.getElementById('mapViewport');
+  if (!vp) return;
+  const cx = originX == null ? vp.clientWidth / 2 : originX;
+  const cy = originY == null ? vp.clientHeight / 2 : originY;
+  const nextZoom = Math.max(MAP_ZOOM_MIN, Math.min(MAP_ZOOM_MAX, mapZoom * factor));
+  if (nextZoom === mapZoom) return;
+  mapPanX = cx - (nextZoom / mapZoom) * (cx - mapPanX);
+  mapPanY = cy - (nextZoom / mapZoom) * (cy - mapPanY);
+  mapZoom = nextZoom;
+  clampMapPan();
+  applyMapTransform();
+}
+
+function resetMapView() {
+  mapZoom = 1;
+  mapPanX = 0;
+  mapPanY = 0;
+  applyMapTransform();
+}
+
+function onMapWheel(e) {
+  const viewport = e.target.closest('#mapViewport');
+  if (!viewport) return;
+  e.preventDefault();
+  const rect = viewport.getBoundingClientRect();
+  const factor = Math.exp(-e.deltaY * 0.0015);
+  zoomMapBy(factor, e.clientX - rect.left, e.clientY - rect.top);
+}
+
+function onMapPointerDown(e) {
+  if (placingKey || e.target.closest('.pin')) return;
+  const viewport = e.target.closest('#mapViewport');
+  if (!viewport) return;
+  mapDragState = {
+    viewport,
+    startClientX: e.clientX,
+    startClientY: e.clientY,
+    startPanX: mapPanX,
+    startPanY: mapPanY,
+    moved: false,
+  };
+  try { viewport.setPointerCapture(e.pointerId); } catch (err) {}
+}
+
+function onMapPointerMove(e) {
+  const d = mapDragState;
+  if (!d) return;
+  const dx = e.clientX - d.startClientX;
+  const dy = e.clientY - d.startClientY;
+  if (!d.moved) {
+    if (Math.hypot(dx, dy) < 3) return;
+    d.moved = true;
+    const stage = document.getElementById('mapStage');
+    if (stage) stage.classList.add('panning');
+  }
+  mapPanX = d.startPanX + dx;
+  mapPanY = d.startPanY + dy;
+  clampMapPan();
+  applyMapTransform();
+}
+
+function onMapPointerUp() {
+  if (!mapDragState) return;
+  mapDragState = null;
+  const stage = document.getElementById('mapStage');
+  if (stage) stage.classList.remove('panning');
 }
 
 function recomputeVoteHighlights() {
@@ -727,6 +841,12 @@ function onClick(e) {
   if (addCountryBtn) { addCountry(); return; }
   const placeBtn = e.target.closest('[data-place]');
   if (placeBtn) { startPlacing(placeBtn.closest('.stop').dataset.key); return; }
+  const zoomInBtn = e.target.closest('[data-zoom-in]');
+  if (zoomInBtn) { zoomMapBy(1.5); return; }
+  const zoomOutBtn = e.target.closest('[data-zoom-out]');
+  if (zoomOutBtn) { zoomMapBy(1 / 1.5); return; }
+  const zoomResetBtn = e.target.closest('[data-zoom-reset]');
+  if (zoomResetBtn) { resetMapView(); return; }
   const signOutBtn = e.target.closest('#signOutBtn');
   if (signOutBtn) { if (signOutFn) signOutFn(); return; }
   const voteBtn = e.target.closest('[data-vote]');
@@ -911,6 +1031,7 @@ function bindListeners() {
   app.addEventListener('input', onInput);
   app.addEventListener('click', onClick);
   app.addEventListener('keydown', onKeydown);
+  app.addEventListener('wheel', onMapWheel, { passive: false });
   app.addEventListener('pointerdown', onPointerDown);
   // move/up listen on window, not app: a grabbed stop is reparented to <body>
   // for the duration of the drag (see onStopPointerDown), which takes it out
@@ -922,7 +1043,7 @@ function bindListeners() {
   window.addEventListener('beforeunload', () => {
     if (saveTimer) doSave();
   });
-  window.addEventListener('resize', () => drawRoute());
+  window.addEventListener('resize', () => { clampMapPan(); applyMapTransform(); });
 }
 
 export async function startApp(container, user, onSignOut) {
