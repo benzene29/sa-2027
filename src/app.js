@@ -837,9 +837,23 @@ function onClick(e) {
   const addStopBtn = e.target.closest('[data-add-stop]');
   if (addStopBtn) { addStop(parseInt(addStopBtn.closest('.region').dataset.regionIdx, 10)); return; }
   const delBtn = e.target.closest('[data-delete]');
-  if (delBtn) { removeStop(delBtn.closest('.stop').dataset.key); return; }
+  if (delBtn) {
+    const key = delBtn.closest('.stop').dataset.key;
+    const found = findStopByKey(key);
+    const name = found ? found.stop.name || 'this activity' : 'this activity';
+    if (window.confirm('Remove "' + name + '"? This can\'t be undone.')) removeStop(key);
+    return;
+  }
   const delRegionBtn = e.target.closest('[data-delete-region]');
-  if (delRegionBtn) { removeRegion(parseInt(delRegionBtn.closest('.region').dataset.regionIdx, 10)); return; }
+  if (delRegionBtn) {
+    const regionIdx = parseInt(delRegionBtn.closest('.region').dataset.regionIdx, 10);
+    const region = state.regions[regionIdx];
+    const label = region ? (region.name || region.country || 'this country') : 'this country';
+    const stopCount = region ? region.stops.length : 0;
+    const detail = stopCount > 0 ? ' and its ' + stopCount + ' ' + (stopCount === 1 ? 'activity' : 'activities') : '';
+    if (window.confirm('Remove "' + label + '"' + detail + '? This can\'t be undone.')) removeRegion(regionIdx);
+    return;
+  }
   const addCountryBtn = e.target.closest('[data-add-country]');
   if (addCountryBtn) { addCountry(); return; }
   const placeBtn = e.target.closest('[data-place]');
