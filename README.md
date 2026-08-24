@@ -11,6 +11,11 @@ password on first click — after that it's a normal email+password account
 (with a "forgot password" link for when it happens). Edits show up for
 everyone else with the page open within a few seconds, no reload needed.
 
+On desktop, the map sits pinned in its own column next to the itinerary; as
+you scroll through activities it eases (with a bit of inertia) to zoom in on
+whichever one's pin is centered on screen, and back out when nothing in view
+has a pin. On narrower screens it's a single column instead.
+
 ## 1. Create the Supabase project
 
 1. Create a project at [supabase.com](https://supabase.com) (free tier is fine).

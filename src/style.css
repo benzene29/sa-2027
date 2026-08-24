@@ -18,8 +18,25 @@
 *{box-sizing:border-box;}
 html,body{background:var(--paper);}
 body{margin:0;background:var(--paper);color:var(--ink);font-family:'IBM Plex Sans', sans-serif;padding:0 0 80px 0;}
-.wrap{max-width:880px;margin:0 auto;padding:40px 24px;}
-header.top{display:flex;flex-direction:column;gap:6px;margin-bottom:8px;}
+.wrap{
+  max-width:880px;margin:0 auto;padding:40px 24px;
+  display:grid;grid-template-columns:1fr;
+  grid-template-areas:"header" "budget" "chips" "map" "trail" "footer";
+}
+@media (min-width:980px){
+  .wrap{
+    max-width:1200px;column-gap:44px;align-items:start;
+    grid-template-columns:minmax(0,1fr) 380px;
+    grid-template-areas:
+      "header header"
+      "budget budget"
+      "chips  map"
+      "trail  map"
+      "footer map";
+  }
+  .map-section{position:sticky;top:104px;z-index:10;margin-bottom:0;}
+}
+header.top{grid-area:header;display:flex;flex-direction:column;gap:6px;margin-bottom:8px;}
 .eyebrow-row{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;}
 .eyebrow{font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--sienna);}
 .sync-badge{display:inline-flex;align-items:center;gap:6px;font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--teal);}
@@ -33,7 +50,7 @@ h1{font-family:'Fraunces',serif;font-weight:700;font-size:clamp(28px,4vw,40px);m
 [contenteditable="true"]:focus{background:var(--card);box-shadow:0 0 0 2px var(--line);}
 [contenteditable="false"]{cursor:default;}
 .editable:empty::before{content:attr(data-placeholder);color:var(--ink-soft);opacity:.6;}
-.budget-panel{position:sticky;top:0;z-index:20;background:var(--paper);padding:18px 0 14px 0;border-bottom:1px solid var(--line);margin-bottom:28px;}
+.budget-panel{grid-area:budget;position:sticky;top:0;z-index:20;background:var(--paper);padding:18px 0 14px 0;border-bottom:1px solid var(--line);margin-bottom:28px;}
 .budget-row{display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap;}
 .budget-label{font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--ink-soft);}
 .budget-total-input{width:48px;background:transparent;border:none;border-bottom:1px dashed var(--ink-soft);font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--ink);text-align:center;}
@@ -46,7 +63,7 @@ h1{font-family:'Fraunces',serif;font-weight:700;font-size:clamp(28px,4vw,40px);m
 .dates-row{display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-top:12px;}
 .dates-row input[type="date"]{font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:5px;padding:2px 6px;}
 .trip-dates-figure{font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--ink-soft);white-space:nowrap;}
-.route-overview{margin-bottom:28px;}
+.route-overview{grid-area:chips;margin-bottom:28px;}
 .chip-row{display:flex;align-items:center;flex-wrap:wrap;gap:6px;padding:4px 0;}
 .country-chip{display:flex;align-items:center;gap:6px;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:6px 10px;position:relative;}
 .country-chip.pinned{background:var(--paper-2);}
@@ -57,7 +74,7 @@ h1{font-family:'Fraunces',serif;font-weight:700;font-size:clamp(28px,4vw,40px);m
 .chip-country{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--sienna);}
 .chip-region{font-size:12px;color:var(--ink);white-space:nowrap;}
 .chip-arrow{color:var(--ink-soft);font-size:13px;}
-.map-section{margin-bottom:32px;}
+.map-section{grid-area:map;margin-bottom:32px;}
 .map-head{margin-bottom:12px;}
 .map-title{font-family:'Fraunces',serif;font-weight:600;font-size:19px;margin:0 0 4px 0;}
 .map-hint{font-size:12.5px;color:var(--ink-soft);margin:0;max-width:62ch;line-height:1.5;}
@@ -86,7 +103,7 @@ h1{font-family:'Fraunces',serif;font-weight:700;font-size:clamp(28px,4vw,40px);m
 .pin:hover .pin-label, .pin:focus .pin-label{opacity:1;}
 .place-banner{display:none;position:absolute;left:50%;bottom:10px;transform:translateX(-50%);background:var(--ink);color:var(--paper);font-size:12px;padding:6px 12px;border-radius:6px;white-space:nowrap;max-width:90%;overflow:hidden;text-overflow:ellipsis;z-index:3;}
 .place-banner.show{display:block;}
-.trail{position:relative;padding-left:26px;}
+.trail{grid-area:trail;position:relative;padding-left:26px;}
 .trail::before{content:"";position:absolute;left:6px;top:6px;bottom:6px;width:0;border-left:2px dashed var(--line);}
 section.region{position:relative;margin-bottom:6px;}
 .region-head{position:relative;display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:22px 0 10px 0;flex-wrap:wrap;}
@@ -149,7 +166,7 @@ section.region{position:relative;margin-bottom:6px;}
 .add-country-row::before{content:"";position:absolute;left:-26px;top:26px;width:12px;height:12px;border-radius:50%;background:var(--paper);border:2px dashed var(--sienna);}
 .add-country-btn{width:100%;background:var(--card);border:1px dashed var(--line);border-radius:10px;padding:14px 16px;font-family:'IBM Plex Mono',monospace;font-size:13px;letter-spacing:.04em;color:var(--sienna);cursor:pointer;text-align:center;}
 .add-country-btn:hover{background:var(--hover-tint);border-color:var(--sienna);}
-footer.note{margin-top:36px;padding-top:18px;border-top:1px solid var(--line);font-size:12.5px;color:var(--ink-soft);max-width:60ch;line-height:1.6;}
+footer.note{grid-area:footer;margin-top:36px;padding-top:18px;border-top:1px solid var(--line);font-size:12.5px;color:var(--ink-soft);max-width:60ch;line-height:1.6;}
 .save-now-btn{position:fixed;right:20px;bottom:20px;z-index:45;font-family:'IBM Plex Sans';font-size:13px;font-weight:500;padding:10px 18px;border-radius:24px;border:1px solid var(--line);background:var(--card);color:var(--ink-soft);box-shadow:0 6px 16px rgba(0,0,0,.15);cursor:pointer;transition:background .15s ease, color .15s ease, transform .1s ease;}
 .save-now-btn:hover{transform:translateY(-1px);}
 .save-now-btn.pending{background:var(--sienna);color:var(--card);border-color:var(--sienna);cursor:pointer;}

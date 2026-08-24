@@ -1,6 +1,12 @@
 import { supabase, TRIP_ID } from './supabaseClient.js';
 import { COUNTRY_SHAPES, MAP_VIEWBOX_STR } from './mapData.js';
 
+// Same box the SVG uses (see .map-stage's aspect-ratio in style.css, which is
+// this same width:height baked in as a CSS value) — reused so the scroll-focus
+// math below always agrees with what's actually on screen.
+const MAP_VB = MAP_VIEWBOX_STR.split(' ').map(Number);
+const MAP_STAGE_RATIO = MAP_VB[2] / MAP_VB[3]; // width / height
+
 // Default trip content, carried over verbatim from the original artifact
 // (votes reset to {} since votes are now keyed by Supabase user id, not typed names).
 const DEFAULT_TRIP = {
@@ -475,6 +481,7 @@ function renderApp() {
     '</div>' +
     '<footer class="note">Day counts are starting estimates, not bookings — nudge them as you research. Transit days are rough guesses for flight/bus days including connections; pad them if you\'re not booking the tightest possible layover. Every checkbox, day count, note, added stop, and map pin here is shared — anyone signed in sees your changes live, and you\'ll see theirs.</footer>';
   applyMapTransform();
+  setupScrollFocus();
 }
 
 function drawRoute() {
@@ -543,6 +550,7 @@ function applyMapTransform() {
 }
 
 function zoomMapBy(factor, originX, originY) {
+  markUserMapInteracting();
   const vp = document.getElementById('mapViewport');
   if (!vp) return;
   const cx = originX == null ? vp.clientWidth / 2 : originX;
@@ -557,6 +565,7 @@ function zoomMapBy(factor, originX, originY) {
 }
 
 function resetMapView() {
+  markUserMapInteracting();
   mapZoom = 1;
   mapPanX = 0;
   mapPanY = 0;
@@ -576,6 +585,7 @@ function onMapPointerDown(e) {
   if (placingKey || e.target.closest('.pin')) return;
   const viewport = e.target.closest('#mapViewport');
   if (!viewport) return;
+  markUserMapInteracting();
   mapDragState = {
     viewport,
     startClientX: e.clientX,
@@ -598,6 +608,7 @@ function onMapPointerMove(e) {
     const viewport = document.getElementById('mapViewport');
     if (viewport) viewport.classList.add('panning');
   }
+  markUserMapInteracting();
   mapPanX = d.startPanX + dx;
   mapPanY = d.startPanY + dy;
   clampMapPan();
@@ -609,6 +620,124 @@ function onMapPointerUp() {
   mapDragState = null;
   const viewport = document.getElementById('mapViewport');
   if (viewport) viewport.classList.remove('panning');
+  markUserMapInteracting();
+}
+
+// Scroll-driven map focus: on the two-column desktop layout, the map is
+// pinned in view while the activity list scrolls past it. As each activity
+// crosses the vertical center of the viewport, the map eases (with a light
+// inertia, not a hard cut) toward a zoomed-in view centered on that
+// activity's pin — and eases back out to the full route when nothing in
+// view has one. It's a personal viewing convenience like manual zoom/pan,
+// so it never touches `state` or fights a person who's manually zooming.
+const AUTO_FOCUS_ZOOM = 2.6;
+const FOLLOW_EASE = 0.12; // per-frame lerp fraction toward the target — the "inertia"
+const USER_INTERACT_GRACE_MS = 1500;
+let scrollFocusObserver = null;
+let focusStopKey = null;
+let followRaf = null;
+let userMapInteracting = false;
+let userInteractTimer = null;
+
+function isDesktopLayout() {
+  return typeof window.matchMedia === 'function' && window.matchMedia('(min-width: 980px)').matches;
+}
+
+function markUserMapInteracting() {
+  userMapInteracting = true;
+  clearTimeout(userInteractTimer);
+  userInteractTimer = setTimeout(() => {
+    userMapInteracting = false;
+    nudgeFollow();
+  }, USER_INTERACT_GRACE_MS);
+}
+
+function computeFocusTransform(key) {
+  const pin = state.pins[key];
+  if (!pin) return null;
+  const vp = document.getElementById('mapViewport');
+  if (!vp) return null;
+  const vw = vp.clientWidth, vh = vp.clientHeight;
+  if (!vw || !vh) return null;
+  // #mapStage sits height:100% inside the (untransformed) frame, centered
+  // horizontally — mirrors the .map-stage rules in style.css.
+  const stageWidth = vh * MAP_STAGE_RATIO;
+  const stageLeft = (vw - stageWidth) / 2;
+  const localX = stageLeft + (pin.x / 100) * stageWidth;
+  const localY = (pin.y / 100) * vh;
+  const zoom = AUTO_FOCUS_ZOOM;
+  let panX = vw / 2 - localX * zoom;
+  let panY = vh / 2 - localY * zoom;
+  const minX = Math.min(0, vw * (1 - zoom));
+  const minY = Math.min(0, vh * (1 - zoom));
+  panX = Math.max(minX, Math.min(0, panX));
+  panY = Math.max(minY, Math.min(0, panY));
+  return { panX, panY, zoom };
+}
+
+function currentFollowTarget() {
+  if (userMapInteracting || !isDesktopLayout()) return null;
+  if (focusStopKey) {
+    const t = computeFocusTransform(focusStopKey);
+    if (t) return t;
+  }
+  return { panX: 0, panY: 0, zoom: 1 };
+}
+
+function stepFollow() {
+  followRaf = null;
+  const target = currentFollowTarget();
+  if (!target) return;
+  const dx = target.panX - mapPanX;
+  const dy = target.panY - mapPanY;
+  const dz = target.zoom - mapZoom;
+  if (Math.abs(dx) < 0.4 && Math.abs(dy) < 0.4 && Math.abs(dz) < 0.004) {
+    mapPanX = target.panX; mapPanY = target.panY; mapZoom = target.zoom;
+    applyMapTransform();
+    return;
+  }
+  mapPanX += dx * FOLLOW_EASE;
+  mapPanY += dy * FOLLOW_EASE;
+  mapZoom += dz * FOLLOW_EASE;
+  applyMapTransform();
+  followRaf = requestAnimationFrame(stepFollow);
+}
+
+function nudgeFollow() {
+  if (followRaf) return;
+  followRaf = requestAnimationFrame(stepFollow);
+}
+
+function setupScrollFocus() {
+  if (scrollFocusObserver) { scrollFocusObserver.disconnect(); scrollFocusObserver = null; }
+  if (typeof IntersectionObserver !== 'function' || !isDesktopLayout()) {
+    if (focusStopKey !== null) { focusStopKey = null; nudgeFollow(); }
+    return;
+  }
+  const stopEls = Array.prototype.slice.call(document.querySelectorAll('.stop'));
+  if (!stopEls.length) { focusStopKey = null; return; }
+  const intersecting = new Map(); // key -> element, for whichever stops currently cross the center band
+  scrollFocusObserver = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      const key = entry.target.dataset.key;
+      if (entry.isIntersecting) intersecting.set(key, entry.target); else intersecting.delete(key);
+    });
+    // Tall stop cards can straddle the band on both sides of the true center
+    // line at once — pick whichever candidate's own midpoint is nearest it,
+    // rather than just the first one in DOM order.
+    const viewportMid = window.innerHeight / 2;
+    let next = null, bestDist = Infinity;
+    intersecting.forEach((el, key) => {
+      const r = el.getBoundingClientRect();
+      const dist = Math.abs((r.top + r.bottom) / 2 - viewportMid);
+      if (dist < bestDist) { bestDist = dist; next = key; }
+    });
+    if (next !== focusStopKey) {
+      focusStopKey = next;
+      nudgeFollow();
+    }
+  }, { rootMargin: '-45% 0px -45% 0px', threshold: 0 });
+  stopEls.forEach((el) => scrollFocusObserver.observe(el));
 }
 
 function recomputeVoteHighlights() {
@@ -1060,7 +1189,7 @@ function bindListeners() {
   window.addEventListener('beforeunload', () => {
     if (saveTimer) doSave();
   });
-  window.addEventListener('resize', () => { clampMapPan(); applyMapTransform(); });
+  window.addEventListener('resize', () => { clampMapPan(); applyMapTransform(); setupScrollFocus(); nudgeFollow(); });
 }
 
 export async function startApp(container, user, onSignOut) {
@@ -1087,4 +1216,7 @@ export async function startApp(container, user, onSignOut) {
 
 export function stopApp() {
   stopPolling();
+  if (scrollFocusObserver) { scrollFocusObserver.disconnect(); scrollFocusObserver = null; }
+  if (followRaf) { cancelAnimationFrame(followRaf); followRaf = null; }
+  clearTimeout(userInteractTimer);
 }
