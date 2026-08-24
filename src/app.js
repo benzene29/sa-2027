@@ -1,0 +1,785 @@
+import { supabase, TRIP_ID } from './supabaseClient.js';
+import { COUNTRY_SHAPES, MAP_VIEWBOX_STR } from './mapData.js';
+
+// Default trip content, carried over verbatim from the original artifact
+// (votes reset to {} since votes are now keyed by Supabase user id, not typed names).
+const DEFAULT_TRIP = {
+  "title": "South America, full route.",
+  "sub": "Toggle stops on/off, edit day counts, and add your own countries or activities — the tally at the top updates for everyone. Click “Place on map” on any stop to drop its pin. Changes sync live for anyone with this link.",
+  "budget": 33,
+  "startDate": "2027-08-01",
+  "votes": {},
+  "pins": {"scl-arrival":{"x":24.03,"y":67.02},"bog":{"x":16.97,"y":12.28},"ctg":{"x":13.99,"y":4.13},"med":{"x":13.89,"y":10.07},"mindo":{"x":7.26,"y":18.96},"cotopaxi":{"x":7.94,"y":20.01},"banos":{"x":7.96,"y":21.03},"cuenca":{"x":6.79,"y":23.2},"cusco":{"x":21.3,"y":38.44},"rainbow":{"x":22.69,"y":38.9},"mp":{"x":20.1,"y":37.91},"santacruz":{"x":9.82,"y":32.71},"huayhuash":{"x":11.18,"y":33.77},"arequipa":{"x":22.19,"y":42.56},"colca":{"x":21.55,"y":41.41},"tambopata":{"x":26.81,"y":37.44},"ica":{"x":13.54,"y":39.22},"sucre":{"x":35.16,"y":46.36},"saltflats":{"x":30.55,"y":47.91},"atacama":{"x":29.09,"y":51.9},"chalten":{"x":19.4,"y":89.79},"ba":{"x":49.36,"y":68.67},"iguazu":{"x":57.5,"y":55.87},"rio":{"x":80.76,"y":51.9},"paraty":{"x":77.59,"y":52.34}},
+  "regions": [
+    {"country":"Chile","name":"Arrival from Auckland","deletable":false,"transitBefore":null,"stops":[{"id":"scl-arrival","name":"Santiago (landing)","note":"Long-haul from Auckland — set to 0 if it's a same-day connection, bump up if you want a night to recover","noteText":"","days":0,"included":true,"locked":true}]},
+    {"country":"Colombia","name":"Caribbean & the Andes","deletable":false,"transitBefore":{"days":1,"label":"Santiago → Bogotá"},"stops":[{"id":"bog","name":"Bogotá (arrival)","note":"Gateway in, ease into altitude","noteText":"","days":1,"included":true,"locked":true},{"id":"ctg","name":"Cartagena","note":"Old town + Caribbean coast","noteText":"","days":2,"included":true,"locked":false},{"id":"med","name":"Medellín","note":"Vibrant city, day trips out","noteText":"","days":2,"included":true,"locked":false}]},
+    {"country":"Ecuador","name":"Cloud Forest to Volcanoes","deletable":true,"transitBefore":{"days":1,"label":"Colombia → Ecuador"},"stops":[{"id":"mindo","name":"Mindo Cloud Forest","note":"Zipline / tubing, easy add-on","noteText":"","days":1,"included":true,"locked":false},{"id":"cotopaxi","name":"Cotopaxi Volcano","note":"2-day guided climb, ~$150pp — group mostly Maybe","noteText":"","days":2,"included":false,"locked":false},{"id":"banos","name":"Baños","note":"Adventure capital","noteText":"","days":2,"included":true,"locked":false},{"id":"cuenca","name":"Cuenca","note":"Colonial city, easy stop","noteText":"","days":1,"included":true,"locked":false}]},
+    {"country":"Peru","name":"Andes & Amazon","deletable":true,"transitBefore":{"days":1,"label":"Ecuador → Peru"},"stops":[{"id":"cusco","name":"Cusco","note":"Base for the region, acclimatize here","noteText":"","days":3,"included":true,"locked":false},{"id":"rainbow","name":"Rainbow Mountain","note":"Day trip from Cusco","noteText":"","days":1,"included":true,"locked":false},{"id":"mp","name":"Machu Picchu","note":"Train + site — book early, gets pricey","noteText":"","days":2,"included":true,"locked":false},{"id":"santacruz","name":"Santa Cruz Trek","note":"4 days / 3 nights camping","noteText":"","days":4,"included":true,"locked":false},{"id":"huayhuash","name":"Mini Huayhuash Hike","note":"4 days / 3 nights, high altitude — mostly Maybe","noteText":"","days":4,"included":false,"locked":false},{"id":"arequipa","name":"Arequipa","note":"White city, culture","noteText":"","days":2,"included":true,"locked":false},{"id":"colca","name":"Colca Canyon","note":"Condors, flexible day/night","noteText":"","days":2,"included":true,"locked":false},{"id":"tambopata","name":"Tambopata","note":"Amazon rainforest — mostly Maybe","noteText":"","days":3,"included":false,"locked":false},{"id":"ica","name":"Ica + Nazca","note":"Lines + dunes, on the way from Lima","noteText":"","days":2,"included":true,"locked":false}]},
+    {"country":"Bolivia","name":"Sucre & the Salt Flats","deletable":true,"transitBefore":{"days":1,"label":"Peru → Bolivia"},"stops":[{"id":"sucre","name":"Sucre","note":"White city, easy day or two","noteText":"","days":2,"included":true,"locked":false},{"id":"saltflats","name":"Salt Flats 4WD","note":"3 nights / 2 days, tour ends in Chile","noteText":"","days":3,"included":true,"locked":false}]},
+    {"country":"Chile","name":"Atacama","deletable":true,"transitBefore":{"days":0,"label":"Bolivia → Chile (salt flat tour drops you in San Pedro)"},"stops":[{"id":"atacama","name":"San Pedro de Atacama","note":"Base for Valle de la Luna, desert & stargazing","noteText":"","days":3,"included":true,"locked":false}]},
+    {"country":"Argentina","name":"Patagonia & Buenos Aires","deletable":true,"transitBefore":{"days":2,"label":"Chile → Patagonia (via Santiago)"},"stops":[{"id":"chalten","name":"El Chaltén + Los Glaciares","note":"Hiking capital + Perito Moreno area","noteText":"","days":3,"included":true,"locked":false},{"id":"ba","name":"Buenos Aires","note":"Boca Juniors game","noteText":"","days":2,"included":true,"locked":false}]},
+    {"country":"Argentina / Brazil","name":"Iguazu Falls","deletable":true,"transitBefore":{"days":1,"label":"Buenos Aires → Iguazu"},"stops":[{"id":"iguazu","name":"Iguazu Falls","note":"Both sides if time allows","noteText":"","days":2,"included":true,"locked":false}]},
+    {"country":"Brazil","name":"Atlantic Coast","deletable":true,"transitBefore":{"days":1,"label":"Iguazu → Rio"},"stops":[{"id":"rio","name":"Rio de Janeiro","note":"Christ the Redeemer + Maracanã","noteText":"","days":3,"included":true,"locked":false},{"id":"paraty","name":"Paraty","note":"Colonial coastal town","noteText":"","days":2,"included":true,"locked":false}]}
+  ]
+};
+
+let app = null;
+let saveBtn = null;
+let state = null;
+let currentUser = null;
+let signOutFn = null;
+let profiles = {}; // uid -> display name
+
+let placingKey = null;
+let dragState = null;
+let saveTimer = null;
+let saving = false;
+let pendingResave = false;
+
+let listenersBound = false;
+let tripChannel = null;
+let profilesChannel = null;
+
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function uid(prefix) {
+  return prefix + '-' + Math.random().toString(36).slice(2, 9);
+}
+
+function myDisplayName() {
+  if (profiles[currentUser.id]) return profiles[currentUser.id];
+  return (currentUser.email || '').split('@')[0];
+}
+
+function findStopByKey(key) {
+  for (const region of state.regions) {
+    for (const stop of region.stops) {
+      if (stop.id === key) return { stop, region };
+    }
+  }
+  return null;
+}
+
+function computeGrandTotal() {
+  let grand = 0;
+  state.regions.forEach((region) => {
+    region.stops.forEach((s) => { if (s.included) grand += Math.max(0, s.days || 0); });
+    if (region.transitBefore) grand += Math.max(0, region.transitBefore.days || 0);
+  });
+  return grand;
+}
+
+const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+function parseISODate(s) {
+  if (!s) return null;
+  const parts = String(s).split('-');
+  if (parts.length !== 3) return null;
+  const y = parseInt(parts[0], 10), m = parseInt(parts[1], 10), d = parseInt(parts[2], 10);
+  if (!y || !m || !d) return null;
+  return new Date(Date.UTC(y, m - 1, d));
+}
+
+function addDaysUTC(date, n) {
+  return new Date(date.getTime() + n * 86400000);
+}
+
+function fmtDate(date) {
+  return MONTH_NAMES[date.getUTCMonth()] + ' ' + date.getUTCDate();
+}
+
+function fmtRange(start, endInclusive) {
+  if (!start) return '';
+  if (start.getTime() === endInclusive.getTime()) return fmtDate(start);
+  if (start.getUTCMonth() === endInclusive.getUTCMonth()) {
+    return MONTH_NAMES[start.getUTCMonth()] + ' ' + start.getUTCDate() + '–' + endInclusive.getUTCDate();
+  }
+  return fmtDate(start) + ' – ' + fmtDate(endInclusive);
+}
+
+function computeSchedule() {
+  const start = parseISODate(state.startDate);
+  const stopDates = {}, transitDates = {}, regionSpans = {};
+  if (!start) return { stopDates, transitDates, regionSpans, valid: false };
+  let cursor = start;
+  state.regions.forEach((region, idx) => {
+    if (region.transitBefore) {
+      const tdays = Math.max(0, region.transitBefore.days || 0);
+      const tStart = cursor;
+      const tEnd = addDaysUTC(cursor, Math.max(0, tdays - 1));
+      transitDates[idx] = fmtRange(tStart, tEnd);
+      cursor = addDaysUTC(cursor, tdays);
+    }
+    let regionStart = null, regionEnd = null;
+    region.stops.forEach((stop) => {
+      if (!stop.included) { stopDates[stop.id] = null; return; }
+      const days = Math.max(0, stop.days || 0);
+      const sStart = cursor;
+      const sEnd = addDaysUTC(cursor, Math.max(0, days - 1));
+      stopDates[stop.id] = { start: sStart, end: sEnd };
+      if (!regionStart) regionStart = sStart;
+      regionEnd = sEnd;
+      cursor = addDaysUTC(cursor, days);
+    });
+    regionSpans[idx] = regionStart ? { start: regionStart, end: regionEnd } : null;
+  });
+  const grand = computeGrandTotal();
+  const tripEnd = grand > 0 ? addDaysUTC(start, grand - 1) : start;
+  return { stopDates, transitDates, regionSpans, valid: true, tripStart: start, tripEnd };
+}
+
+const VOTE_CHOICES = ['yes', 'maybe', 'no'];
+const VOTE_LABELS = { yes: 'Yes', maybe: 'Maybe', no: 'No' };
+
+function renderVotes(stop) {
+  const votes = state.votes[stop.id] || {};
+  const myUid = currentUser.id;
+  return '<div class="vote-row">' + VOTE_CHOICES.map((c) => {
+    const uids = Object.keys(votes).filter((u) => votes[u] === c);
+    const names = uids.map((u) => profiles[u] || 'Someone');
+    const mine = votes[myUid] === c;
+    return '<button type="button" class="vote-btn' + (mine ? ' mine' : '') + '" data-vote="' + c + '"' +
+      (names.length ? ' title="' + esc(names.join(', ')) + '"' : '') + '>' +
+      VOTE_LABELS[c] + ' <span class="vote-count">' + names.length + '</span>' +
+    '</button>';
+  }).join('') + '</div>';
+}
+
+function renderStop(stop, schedule) {
+  const excludedClass = stop.included ? '' : ' excluded';
+  const checked = stop.included ? ' checked' : '';
+  const disabledDay = stop.included ? '' : ' disabled';
+  const deleteBtn = stop.locked ? '' : '<button type="button" class="link-btn danger" data-delete>Remove</button>';
+  const dateInfo = schedule.valid ? schedule.stopDates[stop.id] : null;
+  const dateText = dateInfo ? fmtRange(dateInfo.start, dateInfo.end) : '';
+  return '<div class="stop' + excludedClass + '" data-key="' + esc(stop.id) + '">' +
+    '<input type="checkbox" data-toggle' + checked + (stop.locked ? ' disabled' : '') + '>' +
+    '<div>' +
+      '<div class="stop-name editable" contenteditable="true" data-placeholder="Name this activity…">' + esc(stop.name) + '</div>' +
+      '<div class="stop-note editable" contenteditable="true" data-placeholder="Add a short description…">' + esc(stop.note) + '</div>' +
+      '<div class="note-text editable" contenteditable="true" data-placeholder="Add a note…">' + esc(stop.noteText) + '</div>' +
+      renderVotes(stop) +
+      '<div class="stop-controls"><button type="button" class="link-btn" data-place>Place on map</button>' + deleteBtn + '</div>' +
+    '</div>' +
+    '<div class="day-block">' +
+      '<input type="number" class="day-input" min="0" value="' + esc(stop.days) + '" data-days' + disabledDay + '>' +
+      '<div class="stop-date" data-dates>' + esc(dateText) + '</div>' +
+    '</div>' +
+  '</div>';
+}
+
+function renderRegionBlock(region, idx, schedule) {
+  let html = '';
+  if (region.transitBefore) {
+    const t = region.transitBefore;
+    const unit = (parseInt(t.days, 10) === 1) ? 'day' : 'days';
+    const transitDateText = schedule.valid ? (schedule.transitDates[idx] || '') : '';
+    html += '<div class="transit" data-region-idx="' + idx + '">' +
+      '<span class="transit-line"><input type="number" min="0" value="' + esc(t.days) + '" data-transit> <span data-unit>' + unit + '</span></span>' +
+      '<span class="transit-label editable" contenteditable="true" data-placeholder="Flight / bus leg…">' + esc(t.label) + '</span>' +
+      '<span class="transit-dates" data-transit-dates>' + esc(transitDateText) + '</span>' +
+    '</div>';
+  }
+  const delRegionBtn = region.deletable ? '<button type="button" class="link-btn danger" data-delete-region>Remove country</button>' : '';
+  const regionTotal = region.stops.reduce((sum, s) => sum + (s.included ? Math.max(0, s.days || 0) : 0), 0);
+  const span = schedule.valid ? schedule.regionSpans[idx] : null;
+  const regionDateText = span ? fmtRange(span.start, span.end) : '';
+  html += '<section class="region" data-region-idx="' + idx + '">' +
+    '<div class="region-head">' +
+      '<div class="region-title-block">' +
+        '<span class="region-country editable" contenteditable="true" data-placeholder="Country…">' + esc(region.country) + '</span>' +
+        '<span class="region-name editable" contenteditable="true" data-placeholder="Region name…">' + esc(region.name) + '</span>' +
+      '</div>' +
+      '<div class="region-actions"><span class="region-tally"><b data-tally>' + regionTotal + '</b> days</span>' +
+        '<span class="region-dates" data-region-dates>' + esc(regionDateText) + '</span>' + delRegionBtn + '</div>' +
+    '</div>' +
+    '<div class="stops">' + region.stops.map((s) => renderStop(s, schedule)).join('') +
+      '<button type="button" class="add-stop-btn" data-add-stop>+ Add activity</button>' +
+    '</div>' +
+  '</section>';
+  return html;
+}
+
+function renderChipRow() {
+  return state.regions.map((region, idx) => {
+    const pinned = !region.deletable;
+    const arrow = idx < state.regions.length - 1 ? '<span class="chip-arrow" aria-hidden="true">→</span>' : '';
+    return '<div class="country-chip' + (pinned ? ' pinned' : '') + '" data-region-idx="' + idx + '" data-pinned="' + (pinned ? '1' : '0') + '">' +
+      (pinned ? '' : '<span class="chip-handle" aria-hidden="true" title="Drag to reorder">⠿</span>') +
+      '<span class="chip-label"><span class="chip-country">' + esc(region.country) + '</span><span class="chip-region">' + esc(region.name) + '</span></span>' +
+    '</div>' + arrow;
+  }).join('');
+}
+
+function fixTransitAdjacency(oldOrder) {
+  const oldPrevCountry = new Map();
+  oldOrder.forEach((r, i) => { oldPrevCountry.set(r, i > 0 ? oldOrder[i - 1].country : null); });
+  state.regions.forEach((r, i) => {
+    const newPrev = i > 0 ? state.regions[i - 1].country : null;
+    if (i === 0) {
+      r.transitBefore = null;
+    } else if (newPrev !== oldPrevCountry.get(r)) {
+      const days = (r.transitBefore && r.transitBefore.days != null) ? r.transitBefore.days : 1;
+      r.transitBefore = { days, label: newPrev + ' → ' + r.country };
+    }
+  });
+}
+
+function onChipPointerDown(e) {
+  const handle = e.target.closest('.chip-handle');
+  if (!handle) return;
+  const chipEl = handle.closest('.country-chip');
+  if (!chipEl || chipEl.dataset.pinned === '1') return;
+  const idx = parseInt(chipEl.dataset.regionIdx, 10);
+  dragState = {
+    region: state.regions[idx],
+    chipEl,
+    startX: e.clientX,
+    targetIdx: idx,
+    originalOrder: state.regions.slice(),
+  };
+  chipEl.classList.add('dragging');
+  try { handle.setPointerCapture(e.pointerId); } catch (err) {}
+  e.preventDefault();
+}
+
+function onChipPointerMove(e) {
+  if (!dragState) return;
+  dragState.chipEl.style.transform = 'translateX(' + (e.clientX - dragState.startX) + 'px)';
+  const el = document.elementFromPoint(e.clientX, e.clientY);
+  const overChip = el ? el.closest('.country-chip') : null;
+  document.querySelectorAll('.country-chip').forEach((c) => c.classList.remove('drop-target'));
+  if (overChip && overChip !== dragState.chipEl && overChip.dataset.pinned === '0') {
+    dragState.targetIdx = parseInt(overChip.dataset.regionIdx, 10);
+    overChip.classList.add('drop-target');
+  }
+}
+
+function onChipPointerUp() {
+  if (!dragState) return;
+  const region = dragState.region;
+  const targetIdx = dragState.targetIdx;
+  const originalOrder = dragState.originalOrder;
+  const fromIdx = state.regions.indexOf(region);
+  dragState = null;
+  if (fromIdx > -1 && targetIdx > -1 && fromIdx !== targetIdx) {
+    state.regions.splice(fromIdx, 1);
+    state.regions.splice(targetIdx, 0, region);
+    fixTransitAdjacency(originalOrder);
+    renderApp();
+    scheduleSave();
+  } else {
+    document.querySelectorAll('.country-chip').forEach((c) => {
+      c.classList.remove('dragging', 'drop-target');
+      c.style.transform = '';
+    });
+  }
+}
+
+function renderPins() {
+  let html = '';
+  for (const key in state.pins) {
+    if (!Object.prototype.hasOwnProperty.call(state.pins, key)) continue;
+    const found = findStopByKey(key);
+    if (!found) continue;
+    const p = state.pins[key];
+    html += '<div class="pin' + (found.stop.included ? '' : ' excluded-pin') + '" data-key="' + esc(key) + '" tabindex="0" style="left:' + p.x.toFixed(2) + '%;top:' + p.y.toFixed(2) + '%"><span class="pin-dot"></span><span class="pin-label">' + esc(found.stop.name) + '</span></div>';
+  }
+  return html;
+}
+
+function renderApp() {
+  const grand = computeGrandTotal();
+  const budget = Math.max(0, state.budget || 0);
+  const over = grand > budget;
+  const pct = budget > 0 ? Math.min((grand / budget) * 100, 100) : 0;
+  const schedule = computeSchedule();
+  const tripDatesText = schedule.valid
+    ? fmtRange(schedule.tripStart, schedule.tripEnd) + ', ' + schedule.tripEnd.getUTCFullYear()
+    : 'Set a start date to see the calendar';
+  app.innerHTML =
+    '<header class="top">' +
+      '<div class="eyebrow-row"><span class="eyebrow">Andes → Patagonia → Atlantic</span><span class="sync-badge" id="syncBadge">Live shared plan</span></div>' +
+      '<h1 id="tripTitle" contenteditable="true" spellcheck="false">' + esc(state.title) + '</h1>' +
+      '<p class="sub" id="tripSub" contenteditable="true" spellcheck="false">' + esc(state.sub) + '</p>' +
+      '<div class="who-row">Signed in as <b>' + esc(currentUser.email) + '</b>, showing as ' +
+        '<input type="text" id="displayNameInput" maxlength="24" value="' + esc(myDisplayName()) + '"> on the vote buttons below.' +
+        '<button type="button" class="link-btn" id="signOutBtn">Sign out</button></div>' +
+    '</header>' +
+    '<div class="budget-panel">' +
+      '<div class="budget-row"><span class="budget-label">Trip budget: <input id="budgetInput" class="budget-total-input" type="number" min="1" value="' + esc(budget) + '"> days</span>' +
+      '<span id="budgetFigure" class="budget-figure ' + (over ? 'over' : 'under') + '">' + grand + ' / ' + budget + ' days</span></div>' +
+      '<div class="bar-track"><div id="barFill" class="bar-fill' + (over ? ' over' : '') + '" style="width:' + pct + '%"></div></div>' +
+      '<div class="dates-row"><span class="budget-label">Trip starts: <input type="date" id="startDateInput" value="' + esc(state.startDate || '') + '"></span>' +
+      '<span id="tripDatesFigure" class="trip-dates-figure">' + esc(tripDatesText) + '</span></div>' +
+    '</div>' +
+    '<section class="route-overview">' +
+      '<div class="map-head"><h2 class="map-title">Route order</h2><p class="map-hint">Drag a country to reorder it — the map, dates, and directions all follow. The arrival leg stays fixed at the start.</p></div>' +
+      '<div class="chip-row" id="chipRow">' + renderChipRow() + '</div>' +
+    '</section>' +
+    '<section class="map-section">' +
+      '<div class="map-head"><h2 class="map-title">Route map</h2><p class="map-hint">Click "Place on map" on a stop below, then click the map to drop its pin — works for stops you add too. Click a placed pin to jump to it in the list.</p></div>' +
+      '<div class="map-card"><div class="map-stage" id="mapStage">' +
+        '<svg class="map-bg" viewBox="' + MAP_VIEWBOX_STR + '" preserveAspectRatio="xMidYMid meet" aria-hidden="true">' +
+          COUNTRY_SHAPES.map((c) => '<path class="landmass-outline" d="' + c.d + '"/>').join('') +
+          COUNTRY_SHAPES.filter((c) => c.label).map((c) => '<text class="country-label" x="' + c.cx + '" y="' + c.cy + '">' + c.label + '</text>').join('') +
+        '</svg>' +
+        '<canvas class="map-route-canvas" id="mapRouteCanvas"></canvas>' +
+        renderPins() +
+      '</div><div id="placeBanner" class="place-banner"></div></div>' +
+    '</section>' +
+    '<div class="trail" id="trail">' +
+      state.regions.map((r, i) => renderRegionBlock(r, i, schedule)).join('') +
+      '<div class="add-country-row"><button type="button" class="add-country-btn" data-add-country>+ Add country</button></div>' +
+    '</div>' +
+    '<footer class="note">Day counts are starting estimates, not bookings — nudge them as you research. Transit days are rough guesses for flight/bus days including connections; pad them if you\'re not booking the tightest possible layover. Every checkbox, day count, note, added stop, and map pin here is shared — anyone signed in sees your changes live, and you\'ll see theirs.</footer>';
+  drawRoute();
+}
+
+function drawRoute() {
+  const canvas = document.getElementById('mapRouteCanvas');
+  const stage = document.getElementById('mapStage');
+  if (!canvas || !stage) return;
+  const rect = stage.getBoundingClientRect();
+  if (rect.width === 0) return;
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, rect.width, rect.height);
+  const pts = [];
+  state.regions.forEach((region) => {
+    region.stops.forEach((s) => {
+      if (!s.included) return;
+      const p = state.pins[s.id];
+      if (!p) return;
+      pts.push([p.x / 100 * rect.width, p.y / 100 * rect.height]);
+    });
+  });
+  if (pts.length > 1) {
+    const teal = getComputedStyle(document.documentElement).getPropertyValue('--teal').trim() || '#2F7A73';
+    ctx.strokeStyle = teal;
+    ctx.lineWidth = 1.6;
+    ctx.setLineDash([5, 4]);
+    ctx.beginPath();
+    ctx.moveTo(pts[0][0], pts[0][1]);
+    for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
+    ctx.stroke();
+  }
+}
+
+function recomputeVoteHighlights() {
+  const myUid = currentUser.id;
+  document.querySelectorAll('.stop').forEach((stopEl) => {
+    const votes = state.votes[stopEl.dataset.key] || {};
+    stopEl.querySelectorAll('.vote-btn').forEach((btn) => {
+      btn.classList.toggle('mine', votes[myUid] === btn.dataset.vote);
+    });
+  });
+}
+
+function recomputeDerived() {
+  const grand = computeGrandTotal();
+  const schedule = computeSchedule();
+  document.querySelectorAll('.region').forEach((regionEl) => {
+    const idx = parseInt(regionEl.dataset.regionIdx, 10);
+    const region = state.regions[idx];
+    if (!region) return;
+    const regionTotal = region.stops.reduce((sum, s) => sum + (s.included ? Math.max(0, s.days || 0) : 0), 0);
+    const tally = regionEl.querySelector('[data-tally]');
+    if (tally) tally.textContent = regionTotal;
+    const regionDatesEl = regionEl.querySelector('[data-region-dates]');
+    if (regionDatesEl) {
+      const span = schedule.valid ? schedule.regionSpans[idx] : null;
+      regionDatesEl.textContent = span ? fmtRange(span.start, span.end) : '';
+    }
+    region.stops.forEach((stop) => {
+      const stopEl = regionEl.querySelector('.stop[data-key="' + stop.id + '"]');
+      if (!stopEl) return;
+      const dateEl = stopEl.querySelector('[data-dates]');
+      if (!dateEl) return;
+      const info = schedule.valid ? schedule.stopDates[stop.id] : null;
+      dateEl.textContent = info ? fmtRange(info.start, info.end) : '';
+    });
+  });
+  document.querySelectorAll('.transit').forEach((transitEl) => {
+    const idx = parseInt(transitEl.dataset.regionIdx, 10);
+    const dEl = transitEl.querySelector('[data-transit-dates]');
+    if (dEl) dEl.textContent = schedule.valid ? (schedule.transitDates[idx] || '') : '';
+  });
+  const tripDatesEl = document.getElementById('tripDatesFigure');
+  if (tripDatesEl) {
+    tripDatesEl.textContent = schedule.valid
+      ? fmtRange(schedule.tripStart, schedule.tripEnd) + ', ' + schedule.tripEnd.getUTCFullYear()
+      : 'Set a start date to see the calendar';
+  }
+  const budget = Math.max(0, state.budget || 0);
+  const over = grand > budget;
+  const fig = document.getElementById('budgetFigure');
+  if (fig) { fig.textContent = grand + ' / ' + budget + ' days'; fig.className = 'budget-figure ' + (over ? 'over' : 'under'); }
+  const bar = document.getElementById('barFill');
+  if (bar) {
+    const pct = budget > 0 ? Math.min((grand / budget) * 100, 100) : 0;
+    bar.style.width = pct + '%';
+    bar.className = 'bar-fill' + (over ? ' over' : '');
+  }
+  document.querySelectorAll('.pin').forEach((pin) => {
+    const found = findStopByKey(pin.dataset.key);
+    pin.classList.toggle('excluded-pin', !(found && found.stop.included));
+  });
+  drawRoute();
+}
+
+function addStop(regionIdx) {
+  const region = state.regions[regionIdx];
+  if (!region) return;
+  const key = uid('stop');
+  region.stops.push({ id: key, name: 'New activity', note: '', noteText: '', days: 1, included: true, locked: false });
+  renderApp();
+  scheduleSave();
+  const nameEl = document.querySelector('.stop[data-key="' + key + '"] .stop-name');
+  if (nameEl) nameEl.focus();
+}
+
+function removeStop(key) {
+  for (const region of state.regions) {
+    const idx = region.stops.findIndex((s) => s.id === key);
+    if (idx > -1) { region.stops.splice(idx, 1); break; }
+  }
+  delete state.pins[key];
+  delete state.votes[key];
+  if (placingKey === key) stopPlacing();
+  renderApp();
+  scheduleSave();
+}
+
+function removeRegion(regionIdx) {
+  const region = state.regions[regionIdx];
+  if (!region) return;
+  region.stops.forEach((s) => { delete state.pins[s.id]; if (placingKey === s.id) stopPlacing(); });
+  state.regions.splice(regionIdx, 1);
+  renderApp();
+  scheduleSave();
+}
+
+function addCountry() {
+  state.regions.push({ country: 'New Country', name: 'New Region', deletable: true, transitBefore: { days: 1, label: '' }, stops: [] });
+  renderApp();
+  scheduleSave();
+  const idx = state.regions.length - 1;
+  const el = document.querySelector('.region[data-region-idx="' + idx + '"] .region-country');
+  if (el) el.focus();
+}
+
+function startPlacing(key) {
+  placingKey = key;
+  const stage = document.getElementById('mapStage');
+  if (stage) stage.classList.add('placing');
+  const found = findStopByKey(key);
+  const banner = document.getElementById('placeBanner');
+  if (banner) {
+    banner.textContent = 'Click the map to place "' + (found ? found.stop.name : 'this stop') + '"';
+    banner.classList.add('show');
+  }
+}
+
+function stopPlacing() {
+  placingKey = null;
+  const stage = document.getElementById('mapStage');
+  if (stage) stage.classList.remove('placing');
+  const banner = document.getElementById('placeBanner');
+  if (banner) banner.classList.remove('show');
+}
+
+function stagePoint(evt, stageEl) {
+  const rect = stageEl.getBoundingClientRect();
+  const x = Math.max(0, Math.min(100, ((evt.clientX - rect.left) / rect.width) * 100));
+  const y = Math.max(0, Math.min(100, ((evt.clientY - rect.top) / rect.height) * 100));
+  return { x, y };
+}
+
+function onChange(e) {
+  if (e.target.matches('[data-toggle]')) {
+    const stopEl = e.target.closest('.stop');
+    const found = findStopByKey(stopEl.dataset.key);
+    if (!found) return;
+    found.stop.included = e.target.checked;
+    stopEl.classList.toggle('excluded', !found.stop.included);
+    const dayInput = stopEl.querySelector('[data-days]');
+    if (dayInput) dayInput.disabled = !found.stop.included;
+    recomputeDerived();
+    scheduleSave();
+  }
+}
+
+function onInput(e) {
+  const t = e.target;
+  if (t.id === 'budgetInput') {
+    state.budget = Math.max(0, parseInt(t.value, 10) || 0);
+    recomputeDerived(); scheduleSave(); return;
+  }
+  if (t.id === 'startDateInput') {
+    state.startDate = t.value || null;
+    recomputeDerived(); scheduleSave(); return;
+  }
+  if (t.id === 'displayNameInput') {
+    const val = t.value.trim() || (currentUser.email || '').split('@')[0];
+    profiles[currentUser.id] = val;
+    supabase.from('profiles').upsert({ id: currentUser.id, display_name: val }).then(() => {});
+    recomputeVoteHighlights();
+    return;
+  }
+  if (t.matches('[data-days]')) {
+    const stopEl = t.closest('.stop');
+    const found = findStopByKey(stopEl.dataset.key);
+    if (found) { found.stop.days = Math.max(0, parseInt(t.value, 10) || 0); recomputeDerived(); scheduleSave(); }
+    return;
+  }
+  if (t.matches('[data-transit]')) {
+    const transitEl = t.closest('.transit');
+    const idx = parseInt(transitEl.dataset.regionIdx, 10);
+    const region = state.regions[idx];
+    if (region && region.transitBefore) {
+      region.transitBefore.days = Math.max(0, parseInt(t.value, 10) || 0);
+      const unit = transitEl.querySelector('[data-unit]');
+      if (unit) unit.textContent = (parseInt(t.value, 10) === 1 ? 'day' : 'days');
+      recomputeDerived(); scheduleSave();
+    }
+    return;
+  }
+  if (t.id === 'tripTitle') { state.title = t.textContent; scheduleSave(); return; }
+  if (t.id === 'tripSub') { state.sub = t.textContent; scheduleSave(); return; }
+  if (t.matches('.stop-name.editable')) {
+    const se = t.closest('.stop');
+    const found = findStopByKey(se.dataset.key);
+    if (found) {
+      found.stop.name = t.textContent;
+      const pinLabel = document.querySelector('.pin[data-key="' + se.dataset.key + '"] .pin-label');
+      if (pinLabel) pinLabel.textContent = t.textContent;
+      if (placingKey === se.dataset.key) {
+        const banner = document.getElementById('placeBanner');
+        if (banner) banner.textContent = 'Click the map to place "' + (t.textContent || 'this stop') + '"';
+      }
+    }
+    scheduleSave(); return;
+  }
+  if (t.matches('.stop-note.editable')) {
+    const se = t.closest('.stop'); const found = findStopByKey(se.dataset.key);
+    if (found) found.stop.note = t.textContent;
+    scheduleSave(); return;
+  }
+  if (t.matches('.note-text.editable')) {
+    const se = t.closest('.stop'); const found = findStopByKey(se.dataset.key);
+    if (found) found.stop.noteText = t.textContent;
+    scheduleSave(); return;
+  }
+  if (t.matches('.region-country.editable')) {
+    const ridx = parseInt(t.closest('.region').dataset.regionIdx, 10);
+    if (state.regions[ridx]) state.regions[ridx].country = t.textContent;
+    scheduleSave(); return;
+  }
+  if (t.matches('.region-name.editable')) {
+    const ridx = parseInt(t.closest('.region').dataset.regionIdx, 10);
+    if (state.regions[ridx]) state.regions[ridx].name = t.textContent;
+    scheduleSave(); return;
+  }
+  if (t.matches('.transit-label.editable')) {
+    const tidx = parseInt(t.closest('.transit').dataset.regionIdx, 10);
+    if (state.regions[tidx] && state.regions[tidx].transitBefore) state.regions[tidx].transitBefore.label = t.textContent;
+    scheduleSave(); return;
+  }
+}
+
+function onClick(e) {
+  const addStopBtn = e.target.closest('[data-add-stop]');
+  if (addStopBtn) { addStop(parseInt(addStopBtn.closest('.region').dataset.regionIdx, 10)); return; }
+  const delBtn = e.target.closest('[data-delete]');
+  if (delBtn) { removeStop(delBtn.closest('.stop').dataset.key); return; }
+  const delRegionBtn = e.target.closest('[data-delete-region]');
+  if (delRegionBtn) { removeRegion(parseInt(delRegionBtn.closest('.region').dataset.regionIdx, 10)); return; }
+  const addCountryBtn = e.target.closest('[data-add-country]');
+  if (addCountryBtn) { addCountry(); return; }
+  const placeBtn = e.target.closest('[data-place]');
+  if (placeBtn) { startPlacing(placeBtn.closest('.stop').dataset.key); return; }
+  const signOutBtn = e.target.closest('#signOutBtn');
+  if (signOutBtn) { if (signOutFn) signOutFn(); return; }
+  const voteBtn = e.target.closest('[data-vote]');
+  if (voteBtn) {
+    const stopEl = voteBtn.closest('.stop');
+    const key = stopEl.dataset.key;
+    const choice = voteBtn.dataset.vote;
+    const myUid = currentUser.id;
+    if (!state.votes[key]) state.votes[key] = {};
+    if (state.votes[key][myUid] === choice) {
+      delete state.votes[key][myUid];
+    } else {
+      state.votes[key][myUid] = choice;
+    }
+    renderApp();
+    scheduleSave();
+    return;
+  }
+  const pin = e.target.closest('.pin');
+  if (pin) {
+    if (placingKey) return;
+    const row = document.querySelector('.stop[data-key="' + pin.dataset.key + '"]');
+    if (row) row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return;
+  }
+  const stage = e.target.closest('#mapStage');
+  if (stage && placingKey) {
+    const p = stagePoint(e, stage);
+    state.pins[placingKey] = p;
+    stopPlacing();
+    renderApp();
+    scheduleSave();
+    return;
+  }
+}
+
+function onKeydown(e) {
+  if (e.key === 'Enter' && e.target.isContentEditable) { e.preventDefault(); e.target.blur(); }
+}
+
+const SAVE_DEBOUNCE_MS = 5000;
+
+function scheduleSave() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(doSave, SAVE_DEBOUNCE_MS);
+  updateSaveButton('pending');
+}
+
+function setSyncStatus(text) {
+  const badge = document.getElementById('syncBadge');
+  if (badge) badge.textContent = text;
+}
+
+function updateSaveButton(uiState) {
+  if (!saveBtn) return;
+  saveBtn.classList.remove('hidden', 'pending', 'saving');
+  saveBtn.disabled = false;
+  if (uiState === 'pending') {
+    saveBtn.classList.add('pending');
+    saveBtn.textContent = 'Save now';
+  } else if (uiState === 'saving') {
+    saveBtn.classList.add('saving');
+    saveBtn.textContent = 'Saving…';
+    saveBtn.disabled = true;
+  } else {
+    saveBtn.textContent = 'Saved';
+  }
+}
+
+async function doSave() {
+  if (saving) { pendingResave = true; return; }
+  saving = true;
+  clearTimeout(saveTimer);
+  saveTimer = null;
+  setSyncStatus('Saving…');
+  updateSaveButton('saving');
+  const { error } = await supabase
+    .from('trip_state')
+    .update({ data: state, updated_by: currentUser.id, updated_at: new Date().toISOString() })
+    .eq('id', TRIP_ID);
+  if (error) {
+    setSyncStatus('Save failed: ' + error.message);
+    updateSaveButton('pending');
+  } else {
+    setSyncStatus('Saved');
+    updateSaveButton('idle');
+  }
+  saving = false;
+  if (pendingResave) { pendingResave = false; saveTimer = setTimeout(doSave, 200); }
+}
+
+function onSaveNowClick() {
+  if (!saveTimer && !saving) return;
+  doSave();
+}
+
+async function loadProfiles() {
+  const { data } = await supabase.from('profiles').select('id, display_name');
+  profiles = {};
+  (data || []).forEach((p) => { profiles[p.id] = p.display_name; });
+  if (!profiles[currentUser.id]) {
+    const fallback = (currentUser.email || '').split('@')[0];
+    profiles[currentUser.id] = fallback;
+    await supabase.from('profiles').upsert({ id: currentUser.id, display_name: fallback });
+  }
+}
+
+async function loadTripState() {
+  const { data } = await supabase.from('trip_state').select('data').eq('id', TRIP_ID).maybeSingle();
+  if (data && data.data && Object.keys(data.data).length) {
+    state = data.data;
+  } else {
+    state = JSON.parse(JSON.stringify(DEFAULT_TRIP));
+    await supabase.from('trip_state').upsert({ id: TRIP_ID, data: state, updated_by: currentUser.id });
+  }
+  if (!state.votes) state.votes = {};
+  if (!state.pins) state.pins = {};
+}
+
+function subscribeRealtime() {
+  tripChannel = supabase
+    .channel('trip_state_sync')
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'trip_state', filter: `id=eq.${TRIP_ID}` }, (payload) => {
+      if (payload.new.updated_by === currentUser.id) return;
+      state = payload.new.data;
+      if (!state.votes) state.votes = {};
+      if (!state.pins) state.pins = {};
+      renderApp();
+    })
+    .subscribe();
+
+  profilesChannel = supabase
+    .channel('profiles_sync')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, (payload) => {
+      const row = payload.new;
+      if (row && row.id) profiles[row.id] = row.display_name;
+      recomputeVoteHighlights();
+    })
+    .subscribe();
+}
+
+function bindListeners() {
+  if (saveBtn) saveBtn.addEventListener('click', onSaveNowClick);
+  app.addEventListener('change', onChange);
+  app.addEventListener('input', onInput);
+  app.addEventListener('click', onClick);
+  app.addEventListener('keydown', onKeydown);
+  app.addEventListener('pointerdown', onChipPointerDown);
+  app.addEventListener('pointermove', onChipPointerMove);
+  app.addEventListener('pointerup', onChipPointerUp);
+  app.addEventListener('pointercancel', onChipPointerUp);
+  window.addEventListener('beforeunload', () => {
+    if (saveTimer) doSave();
+  });
+  window.addEventListener('resize', () => drawRoute());
+}
+
+export async function startApp(container, user, onSignOut) {
+  app = container;
+  saveBtn = document.getElementById('saveNowBtn');
+  currentUser = user;
+  signOutFn = onSignOut;
+
+  if (tripChannel) { supabase.removeChannel(tripChannel); tripChannel = null; }
+  if (profilesChannel) { supabase.removeChannel(profilesChannel); profilesChannel = null; }
+
+  await loadProfiles();
+  await loadTripState();
+
+  if (!listenersBound) {
+    bindListeners();
+    listenersBound = true;
+  }
+
+  renderApp();
+  setSyncStatus('Live shared plan');
+  updateSaveButton('idle');
+  subscribeRealtime();
+}
