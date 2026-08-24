@@ -1,7 +1,7 @@
 import './style.css';
 import { supabase } from './supabaseClient.js';
 import { renderAuthScreen, renderSetPasswordScreen, renderAuthLoading, watchAuth } from './auth.js';
-import { startApp } from './app.js';
+import { startApp, stopApp } from './app.js';
 
 const app = document.getElementById('app');
 let resolved = false;
@@ -34,6 +34,7 @@ watchAuth((session) => {
     }
   } else {
     started = false;
+    stopApp();
     renderAuthScreen(app);
   }
 });

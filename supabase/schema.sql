@@ -52,9 +52,8 @@ create policy "trip state can be seeded by any signed-in user"
   to authenticated
   with check (true);
 
--- Turn on Realtime so edits show up live for everyone else who has the app open.
-alter publication supabase_realtime add table public.trip_state;
-alter publication supabase_realtime add table public.profiles;
-
 -- No need to insert a starting row here — the app seeds the default itinerary
 -- itself the first time anyone signs in and finds the row missing.
+--
+-- No Realtime setup needed: the app polls trip_state and profiles every few
+-- seconds instead of subscribing to postgres_changes.

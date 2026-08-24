@@ -37,8 +37,8 @@ let saving = false;
 let pendingResave = false;
 
 let listenersBound = false;
-let tripChannel = null;
-let profilesChannel = null;
+let pollTimer = null;
+let lastAppliedAt = null; // Date — newest trip_state.updated_at we've applied or saved ourselves
 
 function esc(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -680,14 +680,16 @@ async function doSave() {
   saveTimer = null;
   setSyncStatus('Saving…');
   updateSaveButton('saving');
+  const now = new Date();
   const { error } = await supabase
     .from('trip_state')
-    .update({ data: state, updated_by: currentUser.id, updated_at: new Date().toISOString() })
+    .update({ data: state, updated_by: currentUser.id, updated_at: now.toISOString() })
     .eq('id', TRIP_ID);
   if (error) {
     setSyncStatus('Save failed: ' + error.message);
     updateSaveButton('pending');
   } else {
+    lastAppliedAt = now;
     setSyncStatus('Saved');
     updateSaveButton('idle');
   }
@@ -713,37 +715,71 @@ async function loadProfiles() {
 }
 
 async function loadTripState() {
-  const { data } = await supabase.from('trip_state').select('data').eq('id', TRIP_ID).maybeSingle();
+  const { data } = await supabase.from('trip_state').select('data, updated_at').eq('id', TRIP_ID).maybeSingle();
   if (data && data.data && Object.keys(data.data).length) {
     state = data.data;
+    lastAppliedAt = data.updated_at ? new Date(data.updated_at) : new Date();
   } else {
     state = JSON.parse(JSON.stringify(DEFAULT_TRIP));
-    await supabase.from('trip_state').upsert({ id: TRIP_ID, data: state, updated_by: currentUser.id });
+    lastAppliedAt = new Date();
+    await supabase.from('trip_state').upsert({ id: TRIP_ID, data: state, updated_by: currentUser.id, updated_at: lastAppliedAt.toISOString() });
   }
   if (!state.votes) state.votes = {};
   if (!state.pins) state.pins = {};
 }
 
-function subscribeRealtime() {
-  tripChannel = supabase
-    .channel('trip_state_sync')
-    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'trip_state', filter: `id=eq.${TRIP_ID}` }, (payload) => {
-      if (payload.new.updated_by === currentUser.id) return;
-      state = payload.new.data;
-      if (!state.votes) state.votes = {};
-      if (!state.pins) state.pins = {};
-      renderApp();
-    })
-    .subscribe();
+// True while the person is actively typing/editing something in the app —
+// used to avoid a poll blowing away in-progress, not-yet-saved edits.
+function isEditingLocally() {
+  const el = document.activeElement;
+  if (!el || !app.contains(el)) return false;
+  return el.isContentEditable || el.tagName === 'INPUT' || el.tagName === 'TEXTAREA';
+}
 
-  profilesChannel = supabase
-    .channel('profiles_sync')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, (payload) => {
-      const row = payload.new;
-      if (row && row.id) profiles[row.id] = row.display_name;
-      recomputeVoteHighlights();
-    })
-    .subscribe();
+const POLL_INTERVAL_MS = 4000;
+
+async function pollForUpdates() {
+  if (saving || saveTimer || isEditingLocally()) return;
+  const [tripRes, profilesRes] = await Promise.all([
+    supabase.from('trip_state').select('data, updated_by, updated_at').eq('id', TRIP_ID).maybeSingle(),
+    supabase.from('profiles').select('id, display_name'),
+  ]);
+
+  let changed = false;
+
+  if (profilesRes.data) {
+    const nextProfiles = {};
+    profilesRes.data.forEach((p) => { nextProfiles[p.id] = p.display_name; });
+    if (JSON.stringify(nextProfiles) !== JSON.stringify(profiles)) {
+      profiles = nextProfiles;
+      changed = true;
+    }
+  }
+
+  const row = tripRes.data;
+  if (row && row.updated_at) {
+    const remoteAt = new Date(row.updated_at);
+    if (!lastAppliedAt || remoteAt > lastAppliedAt) {
+      lastAppliedAt = remoteAt;
+      if (row.updated_by !== currentUser.id) {
+        state = row.data;
+        if (!state.votes) state.votes = {};
+        if (!state.pins) state.pins = {};
+        changed = true;
+      }
+    }
+  }
+
+  if (changed) renderApp();
+}
+
+function startPolling() {
+  stopPolling();
+  pollTimer = setInterval(pollForUpdates, POLL_INTERVAL_MS);
+}
+
+function stopPolling() {
+  if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
 }
 
 function bindListeners() {
@@ -768,8 +804,7 @@ export async function startApp(container, user, onSignOut) {
   currentUser = user;
   signOutFn = onSignOut;
 
-  if (tripChannel) { supabase.removeChannel(tripChannel); tripChannel = null; }
-  if (profilesChannel) { supabase.removeChannel(profilesChannel); profilesChannel = null; }
+  stopPolling();
 
   await loadProfiles();
   await loadTripState();
@@ -782,5 +817,9 @@ export async function startApp(container, user, onSignOut) {
   renderApp();
   setSyncStatus('Live shared plan');
   updateSaveButton('idle');
-  subscribeRealtime();
+  startPolling();
+}
+
+export function stopApp() {
+  stopPolling();
 }

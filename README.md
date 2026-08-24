@@ -2,21 +2,20 @@
 
 Shared South America 2027 trip planner. Migrated from a Claude artifact into a
 real web app: same route map, budget bar, drag-to-reorder countries, and
-per-stop voting — now backed by Supabase (Postgres + Realtime + Auth) instead
-of the artifact's publish-a-copy mechanism, so it can be deployed and shared
-with a real URL.
+per-stop voting — now backed by Supabase (Postgres + Auth) instead of the
+artifact's publish-a-copy mechanism, so it can be deployed and shared with a
+real URL.
 
 New mates enter their name and email, get a verification link, and set a
 password on first click — after that it's a normal email+password account
-(with a "forgot password" link for when it happens). Edits sync live to
-everyone else who has the page open.
+(with a "forgot password" link for when it happens). Edits show up for
+everyone else with the page open within a few seconds, no reload needed.
 
 ## 1. Create the Supabase project
 
 1. Create a project at [supabase.com](https://supabase.com) (free tier is fine).
 2. In the SQL Editor, run [`supabase/schema.sql`](./supabase/schema.sql). This creates
-   the `profiles` and `trip_state` tables, sets up row-level security, and
-   turns on Realtime for both.
+   the `profiles` and `trip_state` tables and sets up row-level security.
 3. Under **Authentication -> Providers**, confirm Email is enabled (it is by
    default) — that's what sends the verification and password-reset links.
 4. Under **Authentication -> URL Configuration**, add the URLs you'll run the
@@ -67,9 +66,11 @@ npm run dev
 - `src/supabaseClient.js` — the Supabase client, reads its config from env vars.
 - `src/mapData.js` — the South America outline used to draw the route map.
 - `supabase/schema.sql` — the two tables (`trip_state`, `profiles`) and their
-  RLS policies / Realtime setup.
+  RLS policies.
 
 The whole trip (regions, stops, pins, budget, votes) lives as one JSON blob in
-`trip_state`, same shape the artifact used. Edits are debounced (5s, or hit
-"Save now") and written back to that row; every other open tab gets the
-update pushed to it over Supabase Realtime and re-renders.
+`trip_state`, same shape the artifact used. Local edits are debounced (5s, or
+hit "Save now") and written back to that row. Every open tab polls
+`trip_state` and `profiles` every 4 seconds and re-renders if something
+changed elsewhere — polling pauses automatically while you're actively typing
+somewhere, so it can't clobber an in-progress edit.
