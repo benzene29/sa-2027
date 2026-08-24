@@ -17,15 +17,6 @@ const JET_ICON = '<svg class="jet-icon" viewBox="0 0 24 24" aria-hidden="true">'
   '<polygon points="13.7,15.8 15.4,20 13,18.2"/>' +
 '</svg>';
 
-// Retro travel-poster skyline (Andes silhouette + sun) sitting behind the
-// header text — purely decorative, sized by CSS to fill header.top.
-const HEADER_SKYLINE =
-  '<svg class="header-skyline" viewBox="0 0 900 200" preserveAspectRatio="none" aria-hidden="true">' +
-    '<circle class="skyline-sun" cx="790" cy="46" r="38"/>' +
-    '<polygon class="skyline-ridge skyline-ridge-back" points="0,200 0,150 70,110 140,145 220,80 300,135 380,70 460,130 540,75 620,140 700,95 780,150 860,110 900,135 900,200"/>' +
-    '<polygon class="skyline-ridge skyline-ridge-front" points="0,200 0,175 60,155 130,180 200,130 270,170 340,120 420,165 500,125 580,175 660,140 740,180 820,150 900,175 900,200"/>' +
-  '</svg>';
-
 // Compass-rose watermark for the corner of the map card.
 const COMPASS_ROSE =
   '<svg class="compass-rose" viewBox="0 0 100 100" aria-hidden="true">' +
@@ -555,7 +546,6 @@ function renderApp() {
     : 'Set a start date to see the calendar';
   app.innerHTML =
     '<header class="top">' +
-      HEADER_SKYLINE +
       '<div class="eyebrow-row"><span class="eyebrow">Andes → Patagonia → Atlantic</span><span class="sync-badge" id="syncBadge">Live shared plan</span></div>' +
       '<h1 id="tripTitle" contenteditable="true" spellcheck="false">' + esc(state.title) + '</h1>' +
       '<p class="sub" id="tripSub" contenteditable="true" spellcheck="false">' + esc(state.sub) + '</p>' +
