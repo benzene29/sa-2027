@@ -283,6 +283,34 @@ function onChipPointerUp() {
   }
 }
 
+// Animates the elements in `items` from wherever they were before `mutate()` ran
+// to wherever they end up after — a small FLIP (First-Last-Invert-Play) so a DOM
+// reorder reads as a slide instead of a jump.
+const REDUCE_MOTION = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+function flipMove(items, mutate) {
+  const first = items.map((el) => el.getBoundingClientRect());
+  mutate();
+  if (REDUCE_MOTION) return;
+  items.forEach((el, i) => {
+    const last = el.getBoundingClientRect();
+    const dx = first[i].left - last.left;
+    const dy = first[i].top - last.top;
+    if (!dx && !dy) return;
+    el.style.transition = 'none';
+    el.style.transform = 'translate(' + dx + 'px,' + dy + 'px)';
+    el.getBoundingClientRect(); // force a layout flush so the transform above is committed
+    requestAnimationFrame(() => {
+      el.style.transition = 'transform .18s ease';
+      el.style.transform = '';
+    });
+  });
+}
+
+function stopSiblings(d) {
+  return Array.prototype.slice.call(d.stopsEl.children).filter((el) => el.classList.contains('stop') && el !== d.stopEl);
+}
+
 function onStopPointerDown(e) {
   const handle = e.target.closest('.stop-handle');
   if (!handle || handle.classList.contains('locked')) return;
@@ -290,54 +318,72 @@ function onStopPointerDown(e) {
   const regionEl = stopEl.closest('.region');
   const regionIdx = parseInt(regionEl.dataset.regionIdx, 10);
   const region = state.regions[regionIdx];
-  const idx = region.stops.findIndex((s) => s.id === stopEl.dataset.key);
-  if (idx === -1) return;
-  stopDragState = {
-    regionIdx,
-    stop: region.stops[idx],
-    stopEl,
-    startY: e.clientY,
-    targetIdx: idx,
-  };
+  const stop = region.stops.find((s) => s.id === stopEl.dataset.key);
+  if (!stop) return;
+  let minIdx = 0;
+  while (minIdx < region.stops.length && region.stops[minIdx].locked) minIdx++;
+
+  const stopsEl = stopEl.parentElement;
+  const rect = stopEl.getBoundingClientRect();
+
+  const gap = document.createElement('div');
+  gap.className = 'stop-gap';
+  gap.style.height = rect.height + 'px';
+  stopsEl.insertBefore(gap, stopEl);
+
+  document.body.appendChild(stopEl);
   stopEl.classList.add('dragging');
+  stopEl.style.position = 'fixed';
+  stopEl.style.left = rect.left + 'px';
+  stopEl.style.top = rect.top + 'px';
+  stopEl.style.width = rect.width + 'px';
+  stopEl.style.zIndex = '60';
+
+  stopDragState = {
+    regionIdx, region, stop, stopEl, stopsEl, gap, minIdx,
+    startClientY: e.clientY,
+    baseTop: rect.top,
+    currentIdx: region.stops.indexOf(stop) - minIdx >= 0 ? region.stops.indexOf(stop) - minIdx : 0,
+  };
   try { handle.setPointerCapture(e.pointerId); } catch (err) {}
   e.preventDefault();
 }
 
 function onStopPointerMove(e) {
-  if (!stopDragState) return;
-  stopDragState.stopEl.style.transform = 'translateY(' + (e.clientY - stopDragState.startY) + 'px)';
-  const el = document.elementFromPoint(e.clientX, e.clientY);
-  const overStopEl = el ? el.closest('.stop') : null;
-  const regionEl = document.querySelector('.region[data-region-idx="' + stopDragState.regionIdx + '"]');
-  document.querySelectorAll('.stop').forEach((s) => s.classList.remove('drop-target'));
-  if (overStopEl && overStopEl !== stopDragState.stopEl && regionEl && regionEl.contains(overStopEl)) {
-    const region = state.regions[stopDragState.regionIdx];
-    const overIdx = region.stops.findIndex((s) => s.id === overStopEl.dataset.key);
-    if (overIdx > -1 && !region.stops[overIdx].locked) {
-      stopDragState.targetIdx = overIdx;
-      overStopEl.classList.add('drop-target');
-    }
+  const d = stopDragState;
+  if (!d) return;
+  d.stopEl.style.top = (d.baseTop + (e.clientY - d.startClientY)) + 'px';
+
+  const siblings = stopSiblings(d); // real stops, excluding the dragged one and the gap
+  let idx = siblings.length - d.minIdx;
+  for (let i = d.minIdx; i < siblings.length; i++) {
+    const r = siblings[i].getBoundingClientRect();
+    if (e.clientY < r.top + r.height / 2) { idx = i - d.minIdx; break; }
   }
+  if (idx === d.currentIdx) return;
+  d.currentIdx = idx;
+
+  flipMove(siblings, () => {
+    const before = siblings[d.minIdx + idx] || null;
+    d.stopsEl.insertBefore(d.gap, before);
+  });
 }
 
 function onStopPointerUp() {
-  if (!stopDragState) return;
-  const { regionIdx, stop, targetIdx } = stopDragState;
+  const d = stopDragState;
+  if (!d) return;
   stopDragState = null;
-  const region = state.regions[regionIdx];
-  const fromIdx = region.stops.indexOf(stop);
-  if (fromIdx > -1 && targetIdx > -1 && fromIdx !== targetIdx) {
-    region.stops.splice(fromIdx, 1);
-    region.stops.splice(targetIdx, 0, stop);
-    renderApp();
-    scheduleSave();
-  } else {
-    document.querySelectorAll('.stop').forEach((s) => {
-      s.classList.remove('dragging', 'drop-target');
-      s.style.transform = '';
-    });
-  }
+  d.stopEl.remove();
+  d.gap.remove();
+
+  const fromIdx = d.region.stops.indexOf(d.stop);
+  const others = d.region.stops.filter((s) => s !== d.stop);
+  const targetIdx = Math.min(d.minIdx + d.currentIdx, others.length);
+  others.splice(targetIdx, 0, d.stop);
+  d.region.stops = others;
+
+  renderApp();
+  if (fromIdx !== targetIdx) scheduleSave();
 }
 
 function onPointerDown(e) {
