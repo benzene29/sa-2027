@@ -7,6 +7,16 @@ import { COUNTRY_SHAPES, MAP_VIEWBOX_STR } from './mapData.js';
 const MAP_VB = MAP_VIEWBOX_STR.split(' ').map(Number);
 const MAP_STAGE_RATIO = MAP_VB[2] / MAP_VB[3]; // width / height
 
+// A small geometric jet silhouette — same shape as the favicon — used as a
+// decorative mark next to the map heading.
+const JET_ICON = '<svg class="jet-icon" viewBox="0 0 24 24" aria-hidden="true">' +
+  '<polygon points="12,3 14.4,13.5 12,12 9.6,13.5"/>' +
+  '<polygon points="12,10.5 3,17.5 9.6,15"/>' +
+  '<polygon points="12,10.5 21,17.5 14.4,15"/>' +
+  '<polygon points="10.3,15.8 8.6,20 11,18.2"/>' +
+  '<polygon points="13.7,15.8 15.4,20 13,18.2"/>' +
+'</svg>';
+
 // Default trip content, carried over verbatim from the original artifact
 // (votes reset to {} since votes are now keyed by Supabase user id, not typed names).
 const DEFAULT_TRIP = {
@@ -452,7 +462,7 @@ function renderApp() {
       '<div class="chip-row" id="chipRow">' + renderChipRow() + '</div>' +
     '</section>' +
     '<section class="map-section">' +
-      '<div class="map-head"><h2 class="map-title">Route map</h2><p class="map-hint">Click "Place on map" on a stop below, then click the map to drop its pin — works for stops you add too. Click a placed pin to jump to it in the list. Scroll or use the buttons to zoom, drag to pan once zoomed in.</p></div>' +
+      '<div class="map-head"><h2 class="map-title">' + JET_ICON + 'Route map</h2><p class="map-hint">Click "Place on map" on a stop below, then click the map to drop its pin — works for stops you add too. Click a placed pin to jump to it in the list. Scroll or use the buttons to zoom, drag to pan once zoomed in.</p></div>' +
       '<div class="map-card">' +
         '<div class="map-toolbar">' +
           '<button type="button" class="map-zoom-btn" data-zoom-out aria-label="Zoom out">−</button>' +
