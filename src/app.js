@@ -156,7 +156,8 @@ async function sendPresence() {
   const now = new Date();
   presence[currentUser.id] = { lastSeen: now, activeStopId: myActiveStopId };
   patchPresence();
-  await supabase.from('profiles').update({ last_seen: now.toISOString(), active_stop_id: myActiveStopId }).eq('id', currentUser.id);
+  const { error } = await supabase.from('profiles').update({ last_seen: now.toISOString(), active_stop_id: myActiveStopId }).eq('id', currentUser.id);
+  if (error) console.error('presence heartbeat failed (has supabase/schema.sql been re-run for the last_seen/active_stop_id columns?):', error.message);
 }
 
 function startPresenceHeartbeat() {
@@ -1390,7 +1391,8 @@ function onSaveNowClick() {
 }
 
 async function loadProfiles() {
-  const { data } = await supabase.from('profiles').select('id, display_name, last_seen, active_stop_id');
+  const { data, error } = await supabase.from('profiles').select('id, display_name, last_seen, active_stop_id');
+  if (error) console.error('loading profiles failed (has supabase/schema.sql been re-run for the last_seen/active_stop_id columns?):', error.message);
   profiles = {};
   presence = {};
   (data || []).forEach((p) => {
@@ -1440,6 +1442,7 @@ async function pollForUpdates() {
 
   let changed = false;
 
+  if (profilesRes.error) console.error('polling profiles failed:', profilesRes.error.message);
   if (profilesRes.data) {
     const nextProfiles = {};
     const nextPresence = {};
