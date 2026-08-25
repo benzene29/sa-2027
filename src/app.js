@@ -36,6 +36,7 @@ const DEFAULT_TRIP = {
   "title": "South America, full route.",
   "sub": "Toggle stops on/off, edit day counts, and add your own countries or activities — the tally at the top updates for everyone. Click “Place on map” on any stop to drop its pin. Changes sync live for anyone with this link.",
   "budget": 33,
+  "moneyBudget": 0,
   "startDate": "2027-08-01",
   "votes": {},
   "pins": {"scl-arrival":{"x":24.03,"y":67.02},"bog":{"x":16.97,"y":12.28},"ctg":{"x":13.99,"y":4.13},"med":{"x":13.89,"y":10.07},"mindo":{"x":7.26,"y":18.96},"cotopaxi":{"x":7.94,"y":20.01},"banos":{"x":7.96,"y":21.03},"cuenca":{"x":6.79,"y":23.2},"cusco":{"x":21.3,"y":38.44},"rainbow":{"x":22.69,"y":38.9},"mp":{"x":20.1,"y":37.91},"santacruz":{"x":9.82,"y":32.71},"huayhuash":{"x":11.18,"y":33.77},"arequipa":{"x":22.19,"y":42.56},"colca":{"x":21.55,"y":41.41},"tambopata":{"x":26.81,"y":37.44},"ica":{"x":13.54,"y":39.22},"sucre":{"x":35.16,"y":46.36},"saltflats":{"x":30.55,"y":47.91},"atacama":{"x":29.09,"y":51.9},"chalten":{"x":19.4,"y":89.79},"ba":{"x":49.36,"y":68.67},"iguazu":{"x":57.5,"y":55.87},"rio":{"x":80.76,"y":51.9},"paraty":{"x":77.59,"y":52.34}},
@@ -206,6 +207,24 @@ function computeGrandTotal() {
   return grand;
 }
 
+function computeMoneyTotal() {
+  let total = 0;
+  state.regions.forEach((region) => {
+    region.stops.forEach((s) => {
+      if (s.included) {
+        total += Math.max(0, s.price || 0);
+        if (s.travelBefore) total += Math.max(0, s.travelBefore.price || 0);
+      }
+    });
+    if (region.transitBefore) total += Math.max(0, region.transitBefore.price || 0);
+  });
+  return total;
+}
+
+function fmtMoney(n) {
+  return '$' + Math.round(Math.max(0, n || 0)).toLocaleString('en-US');
+}
+
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 function parseISODate(s) {
@@ -332,20 +351,29 @@ const TRAVEL_MODES = [
 
 // Ensures every stop after the first in a region carries a travelBefore
 // object (and the first never does) — covers stops loaded from before this
-// field existed, and re-establishes it after adds/removes/reorders.
+// field existed, and re-establishes it after adds/removes/reorders. Also
+// backfills price on stops and travelBefore for data saved before pricing
+// existed.
 function normalizeTravel(region) {
   region.stops.forEach((s, i) => {
+    if (s.price == null) s.price = 0;
     if (i === 0) {
       s.travelBefore = null;
     } else if (!s.travelBefore) {
-      s.travelBefore = { mode: '', duration: '', note: '' };
+      s.travelBefore = { mode: '', duration: '', note: '', price: 0 };
+    } else if (s.travelBefore.price == null) {
+      s.travelBefore.price = 0;
     }
   });
 }
 
 function normalizeAllTravel() {
   state.regions.forEach(normalizeTravel);
-  state.regions.forEach((r) => { if (r.transitBefore && r.transitBefore.mode == null) r.transitBefore.mode = ''; });
+  state.regions.forEach((r) => {
+    if (!r.transitBefore) return;
+    if (r.transitBefore.mode == null) r.transitBefore.mode = '';
+    if (r.transitBefore.price == null) r.transitBefore.price = 0;
+  });
 }
 
 function renderTravel(stop) {
@@ -356,6 +384,7 @@ function renderTravel(stop) {
       TRAVEL_MODES.map((o) => '<option value="' + o.value + '"' + (t.mode === o.value ? ' selected' : '') + '>' + o.label + '</option>').join('') +
     '</select>' +
     '<input type="text" class="travel-duration" data-travel-duration placeholder="Time…" value="' + esc(t.duration) + '">' +
+    '<span class="price-block"><input type="number" class="price-input small" min="0" step="1" value="' + esc(t.price || 0) + '" data-travel-price></span>' +
     '<span class="travel-note editable" contenteditable="true" data-placeholder="Travel notes…" data-travel-note>' + esc(t.note) + '</span>' +
   '</div>';
 }
@@ -398,6 +427,7 @@ function renderStop(stop, schedule) {
     '<div class="day-block">' +
       '<input type="number" class="day-input" min="0" value="' + esc(stop.days) + '" data-days' + disabledDay + '>' +
       '<div class="stop-date" data-dates>' + esc(dateText) + '</div>' +
+      '<span class="price-block"><input type="number" class="price-input" min="0" step="1" value="' + esc(stop.price || 0) + '" data-price' + disabledDay + '></span>' +
     '</div>' +
   '</div>';
 }
@@ -413,6 +443,7 @@ function renderRegionBlock(region, idx, schedule) {
       '<select class="transit-mode" data-transit-mode>' +
         TRAVEL_MODES.map((o) => '<option value="' + o.value + '"' + ((t.mode || '') === o.value ? ' selected' : '') + '>' + o.label + '</option>').join('') +
       '</select>' +
+      '<span class="price-block"><input type="number" class="price-input small" min="0" step="1" value="' + esc(t.price || 0) + '" data-transit-price></span>' +
       '<span class="transit-label editable" contenteditable="true" data-placeholder="Flight / bus leg…">' + esc(t.label) + '</span>' +
       '<span class="transit-dates" data-transit-dates>' + esc(transitDateText) + '</span>' +
     '</div>';
@@ -457,7 +488,8 @@ function fixTransitAdjacency(oldOrder) {
     } else if (newPrev !== oldPrevCountry.get(r)) {
       const days = (r.transitBefore && r.transitBefore.days != null) ? r.transitBefore.days : 1;
       const mode = (r.transitBefore && r.transitBefore.mode) || '';
-      r.transitBefore = { days, mode, label: newPrev + ' → ' + r.country };
+      const price = (r.transitBefore && r.transitBefore.price) || 0;
+      r.transitBefore = { days, mode, price, label: newPrev + ' → ' + r.country };
     }
   });
 }
@@ -691,6 +723,10 @@ function renderApp() {
   const budget = Math.max(0, state.budget || 0);
   const over = grand > budget;
   const pct = budget > 0 ? Math.min((grand / budget) * 100, 100) : 0;
+  const moneyTotal = computeMoneyTotal();
+  const moneyBudget = Math.max(0, state.moneyBudget || 0);
+  const moneyOver = moneyTotal > moneyBudget;
+  const moneyPct = moneyBudget > 0 ? Math.min((moneyTotal / moneyBudget) * 100, 100) : 0;
   const schedule = computeSchedule();
   const tripDatesText = schedule.valid
     ? fmtRange(schedule.tripStart, schedule.tripEnd) + ', ' + schedule.tripEnd.getUTCFullYear()
@@ -710,6 +746,9 @@ function renderApp() {
       '<div class="budget-row"><span class="budget-label">Trip budget: <input id="budgetInput" class="budget-total-input" type="number" min="1" value="' + esc(budget) + '"> days</span>' +
       '<span id="budgetFigure" class="budget-figure ' + (over ? 'over' : 'under') + '">' + grand + ' / ' + budget + ' days</span></div>' +
       '<div class="bar-track"><div id="barFill" class="bar-fill' + (over ? ' over' : '') + '" style="width:' + pct + '%"></div></div>' +
+      '<div class="budget-row"><span class="budget-label">Money budget: $<input id="moneyBudgetInput" class="budget-total-input money" type="number" min="0" value="' + esc(moneyBudget) + '"></span>' +
+      '<span id="moneyBudgetFigure" class="budget-figure ' + (moneyOver ? 'over' : 'under') + '">' + fmtMoney(moneyTotal) + ' / ' + fmtMoney(moneyBudget) + '</span></div>' +
+      '<div class="bar-track"><div id="moneyBarFill" class="bar-fill' + (moneyOver ? ' over' : '') + '" style="width:' + moneyPct + '%"></div></div>' +
       '<div class="dates-row"><span class="budget-label">Trip starts: <input type="date" id="startDateInput" value="' + esc(state.startDate || '') + '"></span>' +
       '<span id="tripDatesFigure" class="trip-dates-figure">' + esc(tripDatesText) + '</span></div>' +
     '</div>' +
@@ -1020,6 +1059,7 @@ function recomputeVoteHighlights() {
 
 function recomputeDerived() {
   const grand = computeGrandTotal();
+  const moneyTotal = computeMoneyTotal();
   const schedule = computeSchedule();
   document.querySelectorAll('.region').forEach((regionEl) => {
     const idx = parseInt(regionEl.dataset.regionIdx, 10);
@@ -1063,6 +1103,16 @@ function recomputeDerived() {
     bar.style.width = pct + '%';
     bar.className = 'bar-fill' + (over ? ' over' : '');
   }
+  const moneyBudget = Math.max(0, state.moneyBudget || 0);
+  const moneyOver = moneyTotal > moneyBudget;
+  const moneyFig = document.getElementById('moneyBudgetFigure');
+  if (moneyFig) { moneyFig.textContent = fmtMoney(moneyTotal) + ' / ' + fmtMoney(moneyBudget); moneyFig.className = 'budget-figure ' + (moneyOver ? 'over' : 'under'); }
+  const moneyBar = document.getElementById('moneyBarFill');
+  if (moneyBar) {
+    const moneyPct = moneyBudget > 0 ? Math.min((moneyTotal / moneyBudget) * 100, 100) : 0;
+    moneyBar.style.width = moneyPct + '%';
+    moneyBar.className = 'bar-fill' + (moneyOver ? ' over' : '');
+  }
   document.querySelectorAll('.pin').forEach((pin) => {
     const found = findStopByKey(pin.dataset.key);
     pin.classList.toggle('excluded-pin', !(found && found.stop.included));
@@ -1104,7 +1154,7 @@ function removeRegion(regionIdx) {
 }
 
 function addCountry() {
-  state.regions.push({ country: 'New Country', name: 'New Region', deletable: true, transitBefore: { days: 1, mode: '', label: '' }, stops: [] });
+  state.regions.push({ country: 'New Country', name: 'New Region', deletable: true, transitBefore: { days: 1, mode: '', price: 0, label: '' }, stops: [] });
   renderApp();
   scheduleSave();
   const idx = state.regions.length - 1;
@@ -1177,6 +1227,10 @@ function onInput(e) {
     state.budget = Math.max(0, parseInt(t.value, 10) || 0);
     recomputeDerived(); scheduleSave(); return;
   }
+  if (t.id === 'moneyBudgetInput') {
+    state.moneyBudget = Math.max(0, parseInt(t.value, 10) || 0);
+    recomputeDerived(); scheduleSave(); return;
+  }
   if (t.id === 'startDateInput') {
     state.startDate = t.value || null;
     recomputeDerived(); scheduleSave(); return;
@@ -1192,6 +1246,24 @@ function onInput(e) {
     const stopEl = t.closest('.stop');
     const found = findStopByKey(stopEl.dataset.key);
     if (found) { found.stop.days = Math.max(0, parseInt(t.value, 10) || 0); recomputeDerived(); scheduleSave(); }
+    return;
+  }
+  if (t.matches('[data-price]')) {
+    const stopEl = t.closest('.stop');
+    const found = findStopByKey(stopEl.dataset.key);
+    if (found) { found.stop.price = Math.max(0, parseFloat(t.value) || 0); recomputeDerived(); scheduleSave(); }
+    return;
+  }
+  if (t.matches('[data-travel-price]')) {
+    const key = t.closest('.travel').dataset.key;
+    const found = findStopByKey(key);
+    if (found && found.stop.travelBefore) { found.stop.travelBefore.price = Math.max(0, parseFloat(t.value) || 0); recomputeDerived(); scheduleSave(); }
+    return;
+  }
+  if (t.matches('[data-transit-price]')) {
+    const idx = parseInt(t.closest('.transit').dataset.regionIdx, 10);
+    const region = state.regions[idx];
+    if (region && region.transitBefore) { region.transitBefore.price = Math.max(0, parseFloat(t.value) || 0); recomputeDerived(); scheduleSave(); }
     return;
   }
   if (t.matches('[data-transit]')) {
@@ -1420,6 +1492,7 @@ async function loadTripState() {
   }
   if (!state.votes) state.votes = {};
   if (!state.pins) state.pins = {};
+  if (state.moneyBudget == null) state.moneyBudget = 0;
   normalizeAllTravel();
 }
 
@@ -1466,6 +1539,7 @@ async function pollForUpdates() {
         state = row.data;
         if (!state.votes) state.votes = {};
         if (!state.pins) state.pins = {};
+        if (state.moneyBudget == null) state.moneyBudget = 0;
         normalizeAllTravel();
         changed = true;
       }

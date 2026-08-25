@@ -97,6 +97,7 @@ h1{font-family:'Jost',sans-serif;font-weight:700;font-size:clamp(28px,4vw,40px);
 .budget-row{display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap;}
 .budget-label{font-family:'DM Mono',monospace;font-size:13px;color:var(--ink-soft);}
 .budget-total-input{width:48px;background:transparent;border:none;border-bottom:1px dashed var(--ink-soft);font-family:'DM Mono',monospace;font-size:13px;color:var(--ink);text-align:center;}
+.budget-total-input.money{width:64px;}
 .budget-figure{font-family:'Jost',sans-serif;font-weight:600;font-size:26px;font-variant-numeric:tabular-nums;}
 .budget-figure.over{color:var(--danger);}
 .budget-figure.under{color:var(--ok);}
@@ -222,6 +223,11 @@ section.region{position:relative;margin-bottom:6px;}
 .day-input:disabled{background:var(--paper-2);color:var(--ink-soft);}
 .stop-date{font-family:'DM Mono',monospace;font-size:10px;color:var(--ink-soft);text-align:center;line-height:1.3;white-space:nowrap;}
 .stop-date:empty{display:none;}
+.price-block{display:flex;align-items:center;gap:2px;}
+.price-block::before{content:"$";font-family:'DM Mono',monospace;font-size:12px;color:var(--ink-soft);}
+.price-input{font-family:'DM Mono',monospace;font-size:12px;text-align:center;width:52px;padding:4px 2px;border:1px solid var(--line);border-radius:6px;background:var(--paper);color:var(--ink);}
+.price-input:disabled{background:var(--paper-2);color:var(--ink-soft);}
+.price-input.small{font-size:11px;width:44px;padding:3px 2px;}
 .add-stop-btn{width:100%;text-align:left;background:none;border:none;border-top:1px dashed var(--line);padding:10px 16px;font-family:'Nunito Sans';font-size:13px;color:var(--sienna);cursor:pointer;}
 .add-stop-btn:hover{background:var(--hover-tint);}
 .travel{display:flex;align-items:center;gap:8px;padding:6px 16px;background:var(--paper-2);border-bottom:1px solid var(--line);flex-wrap:wrap;}
