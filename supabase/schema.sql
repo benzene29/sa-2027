@@ -1,11 +1,19 @@
 -- Run once in the Supabase SQL editor for your project (Dashboard -> SQL Editor -> New query).
 
--- One row per signed-in person: what name they show on the vote buttons.
+-- One row per signed-in person: what name they show on the vote buttons, and
+-- (for presence) when they were last seen and which activity they're on.
 create table if not exists public.profiles (
   id uuid primary key references auth.users (id) on delete cascade,
   display_name text not null default '',
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  last_seen timestamptz,
+  active_stop_id text
 );
+
+-- Safe to re-run: adds these two columns to a profiles table created before
+-- presence existed. No-ops if they're already there.
+alter table public.profiles add column if not exists last_seen timestamptz;
+alter table public.profiles add column if not exists active_stop_id text;
 
 alter table public.profiles enable row level security;
 

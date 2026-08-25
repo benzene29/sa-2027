@@ -35,6 +35,10 @@ you'd rather only your mates can get in, turn off "Allow new users to sign
 up" under Authentication settings and add each person manually under
 Authentication -> Users instead.
 
+If you already ran `schema.sql` before the presence feature (avatars showing
+who's currently on the page) existed, re-run it — it's safe to run again and
+will just add the two missing `profiles` columns it now expects.
+
 ## 2. Local development
 
 ```bash
@@ -79,3 +83,10 @@ hit "Save now") and written back to that row. Every open tab polls
 `trip_state` and `profiles` every 4 seconds and re-renders if something
 changed elsewhere — polling pauses automatically while you're actively typing
 somewhere, so it can't clobber an in-progress edit.
+
+Presence (the little avatar stack up top, and the ones that show up next to
+whichever activity someone's currently focused in) works the same way: every
+open tab writes its own `last_seen` timestamp to its `profiles` row roughly
+every 4 seconds (only while the tab is actually visible), plus which stop it
+has focus in. Anyone whose heartbeat is more than ~12 seconds old is treated
+as gone.

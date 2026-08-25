@@ -58,6 +58,8 @@ let state = null;
 let currentUser = null;
 let signOutFn = null;
 let profiles = {}; // uid -> display name
+let presence = {}; // uid -> { lastSeen: Date|null, activeStopId: string|null }
+let myActiveStopId = null; // stop id the local person currently has focus inside, or null
 
 let placingKey = null;
 let dragState = null;
@@ -68,6 +70,7 @@ let pendingResave = false;
 
 let listenersBound = false;
 let pollTimer = null;
+let presenceTimer = null;
 let countdownTimer = null;
 let lastAppliedAt = null; // Date — newest trip_state.updated_at we've applied or saved ourselves
 
@@ -82,6 +85,106 @@ function uid(prefix) {
 function myDisplayName() {
   if (profiles[currentUser.id]) return profiles[currentUser.id];
   return (currentUser.email || '').split('@')[0];
+}
+
+// A heartbeat lands roughly every 4s (see startPresenceHeartbeat) — anyone
+// silent for 3 beats is treated as gone rather than merely between polls.
+const PRESENCE_STALE_MS = 12000;
+
+function isOnline(uid) {
+  const p = presence[uid];
+  return !!(p && p.lastSeen && (Date.now() - p.lastSeen.getTime()) < PRESENCE_STALE_MS);
+}
+
+function onlineUids() {
+  return Object.keys(presence).filter(isOnline);
+}
+
+// Stable per-person color from their uid, so the same avatar reads the same
+// color everywhere without needing to store one.
+function presenceColor(uid) {
+  let hash = 0;
+  for (let i = 0; i < uid.length; i++) hash = (hash * 31 + uid.charCodeAt(i)) >>> 0;
+  return 'hsl(' + (hash % 360) + ', 60%, 42%)';
+}
+
+function initials(name) {
+  const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return '?';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[1][0]).toUpperCase();
+}
+
+function renderAvatar(uid, extraClass) {
+  const name = profiles[uid] || 'Someone';
+  const label = uid === currentUser.id ? name + ' (you)' : name;
+  return '<span class="avatar' + (extraClass ? ' ' + extraClass : '') + '" style="background:' + presenceColor(uid) + '" title="' + esc(label) + '">' +
+    esc(initials(name)) + '</span>';
+}
+
+// Repaints presence (the header avatar cluster and each stop's "who's
+// looking at this" badge) from the current `presence` map without touching
+// the rest of the DOM — called after every poll so it stays live without
+// forcing a full renderApp() (and the scroll/focus loss that'd cause) purely
+// because someone's heartbeat ticked over.
+function patchPresence() {
+  const myUid = currentUser.id;
+  const online = onlineUids();
+  const globalUids = online.slice().sort((a, b) => (a === myUid ? -1 : b === myUid ? 1 : 0));
+  const presenceRowEl = document.getElementById('presenceRow');
+  if (presenceRowEl) presenceRowEl.innerHTML = globalUids.map((uid) => renderAvatar(uid)).join('');
+
+  document.querySelectorAll('.stop').forEach((stopEl) => {
+    const badge = stopEl.querySelector('[data-stop-presence]');
+    if (!badge) return;
+    const key = stopEl.dataset.key;
+    const uids = online.filter((uid) => uid !== myUid && presence[uid] && presence[uid].activeStopId === key);
+    badge.innerHTML = uids.map((uid) => renderAvatar(uid, 'small')).join('');
+  });
+}
+
+function renderPresenceRow() {
+  const myUid = currentUser.id;
+  const uids = onlineUids().sort((a, b) => (a === myUid ? -1 : b === myUid ? 1 : 0));
+  return '<div class="presence-row" id="presenceRow" title="Who has this open right now">' +
+    uids.map((uid) => renderAvatar(uid)).join('') +
+  '</div>';
+}
+
+async function sendPresence() {
+  if (!currentUser) return;
+  const now = new Date();
+  presence[currentUser.id] = { lastSeen: now, activeStopId: myActiveStopId };
+  patchPresence();
+  await supabase.from('profiles').update({ last_seen: now.toISOString(), active_stop_id: myActiveStopId }).eq('id', currentUser.id);
+}
+
+function startPresenceHeartbeat() {
+  stopPresenceHeartbeat();
+  sendPresence();
+  presenceTimer = setInterval(() => {
+    if (document.visibilityState === 'visible') sendPresence();
+  }, 4000);
+}
+
+function stopPresenceHeartbeat() {
+  if (presenceTimer) { clearInterval(presenceTimer); presenceTimer = null; }
+}
+
+// Delegated on both focusin/focusout (app-level, survives renderApp's full
+// innerHTML rebuilds) — the timeout lets focus land on its new target before
+// we check where it ended up, which is simpler than reconciling the two
+// events' relatedTarget separately.
+function onFocusChange() {
+  setTimeout(() => {
+    const el = document.activeElement;
+    const stopEl = el && el.closest ? el.closest('.stop') : null;
+    const key = stopEl ? stopEl.dataset.key : null;
+    if (key !== myActiveStopId) {
+      myActiveStopId = key;
+      sendPresence();
+    }
+  }, 0);
 }
 
 function findStopByKey(key) {
@@ -288,7 +391,8 @@ function renderStop(stop, schedule) {
       '<div class="stop-note editable" contenteditable="true" data-placeholder="Add a short description…">' + esc(stop.note) + '</div>' +
       '<div class="note-text editable" contenteditable="true" data-placeholder="Add a note…">' + esc(stop.noteText) + '</div>' +
       renderVotes(stop) +
-      '<div class="stop-controls"><button type="button" class="link-btn" data-place>Place on map</button>' + deleteBtn + '</div>' +
+      '<div class="stop-controls"><button type="button" class="link-btn" data-place>Place on map</button>' + deleteBtn +
+        '<span class="stop-presence" data-stop-presence></span></div>' +
     '</div>' +
     '<div class="day-block">' +
       '<input type="number" class="day-input" min="0" value="' + esc(stop.days) + '" data-days' + disabledDay + '>' +
@@ -592,7 +696,8 @@ function renderApp() {
     : 'Set a start date to see the calendar';
   app.innerHTML =
     '<header class="top">' +
-      '<div class="eyebrow-row"><span class="eyebrow">Andes → Patagonia → Atlantic</span><span class="sync-badge" id="syncBadge">Live shared plan</span></div>' +
+      '<div class="eyebrow-row"><span class="eyebrow">Andes → Patagonia → Atlantic</span>' + renderPresenceRow() +
+        '<span class="sync-badge" id="syncBadge">Live shared plan</span></div>' +
       '<h1 id="tripTitle" contenteditable="true" spellcheck="false">' + esc(state.title) + '</h1>' +
       '<p class="sub" id="tripSub" contenteditable="true" spellcheck="false">' + esc(state.sub) + '</p>' +
       '<div class="who-row">Signed in as <b>' + esc(currentUser.email) + '</b>, showing as ' +
@@ -646,6 +751,7 @@ function renderApp() {
     '</footer>';
   applyMapTransform();
   setupScrollFocus();
+  patchPresence();
 }
 
 function drawRoute() {
@@ -1284,13 +1390,18 @@ function onSaveNowClick() {
 }
 
 async function loadProfiles() {
-  const { data } = await supabase.from('profiles').select('id, display_name');
+  const { data } = await supabase.from('profiles').select('id, display_name, last_seen, active_stop_id');
   profiles = {};
-  (data || []).forEach((p) => { profiles[p.id] = p.display_name; });
+  presence = {};
+  (data || []).forEach((p) => {
+    profiles[p.id] = p.display_name;
+    presence[p.id] = { lastSeen: p.last_seen ? new Date(p.last_seen) : null, activeStopId: p.active_stop_id || null };
+  });
   if (!profiles[currentUser.id]) {
     const fallback = (currentUser.user_metadata && currentUser.user_metadata.full_name)
       || (currentUser.email || '').split('@')[0];
     profiles[currentUser.id] = fallback;
+    presence[currentUser.id] = { lastSeen: null, activeStopId: null };
     await supabase.from('profiles').upsert({ id: currentUser.id, display_name: fallback });
   }
 }
@@ -1324,14 +1435,19 @@ async function pollForUpdates() {
   if (saving || saveTimer || isEditingLocally()) return;
   const [tripRes, profilesRes] = await Promise.all([
     supabase.from('trip_state').select('data, updated_by, updated_at').eq('id', TRIP_ID).maybeSingle(),
-    supabase.from('profiles').select('id, display_name'),
+    supabase.from('profiles').select('id, display_name, last_seen, active_stop_id'),
   ]);
 
   let changed = false;
 
   if (profilesRes.data) {
     const nextProfiles = {};
-    profilesRes.data.forEach((p) => { nextProfiles[p.id] = p.display_name; });
+    const nextPresence = {};
+    profilesRes.data.forEach((p) => {
+      nextProfiles[p.id] = p.display_name;
+      nextPresence[p.id] = { lastSeen: p.last_seen ? new Date(p.last_seen) : null, activeStopId: p.active_stop_id || null };
+    });
+    presence = nextPresence;
     if (JSON.stringify(nextProfiles) !== JSON.stringify(profiles)) {
       profiles = nextProfiles;
       changed = true;
@@ -1353,7 +1469,7 @@ async function pollForUpdates() {
     }
   }
 
-  if (changed) renderApp();
+  if (changed) renderApp(); else patchPresence();
 }
 
 function startPolling() {
@@ -1373,6 +1489,8 @@ function bindListeners() {
   app.addEventListener('keydown', onKeydown);
   app.addEventListener('wheel', onMapWheel, { passive: false });
   app.addEventListener('pointerdown', onPointerDown);
+  app.addEventListener('focusin', onFocusChange);
+  app.addEventListener('focusout', onFocusChange);
   // move/up listen on window, not app: a grabbed stop is reparented to <body>
   // for the duration of the drag (see onStopPointerDown), which takes it out
   // of app's subtree — events would stop bubbling to an app-scoped listener.
@@ -1406,6 +1524,7 @@ export async function startApp(container, user, onSignOut) {
   setSyncStatus('Live shared plan');
   updateSaveButton('idle');
   startPolling();
+  startPresenceHeartbeat();
 
   clearInterval(countdownTimer);
   countdownTimer = setInterval(tickCountdown, 1000);
@@ -1413,6 +1532,8 @@ export async function startApp(container, user, onSignOut) {
 
 export function stopApp() {
   stopPolling();
+  stopPresenceHeartbeat();
+  myActiveStopId = null;
   clearInterval(countdownTimer);
   countdownTimer = null;
   if (scrollFocusObserver) { scrollFocusObserver.disconnect(); scrollFocusObserver = null; }

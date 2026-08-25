@@ -57,6 +57,13 @@ header.top::before{
 .sync-badge::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--teal);flex:0 0 auto;}
 .sync-badge.offline{color:var(--ink-soft);}
 .sync-badge.offline::before{background:var(--ink-soft);}
+.presence-row{display:flex;align-items:center;}
+.presence-row:empty{display:none;}
+.avatar{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;font-family:'DM Mono',monospace;font-size:10px;font-weight:600;color:#fff;border:2px solid var(--paper);margin-left:-7px;cursor:default;}
+.avatar:first-child{margin-left:0;}
+.avatar.small{width:16px;height:16px;font-size:8px;border-width:1.5px;margin-left:-5px;}
+.stop-presence{display:inline-flex;align-items:center;margin-left:auto;}
+.stop-presence:empty{display:none;}
 h1{font-family:'Jost',sans-serif;font-weight:700;font-size:clamp(28px,4vw,40px);margin:0;line-height:1.05;text-wrap:balance;}
 .sub{color:var(--ink-soft);font-size:14.5px;max-width:60ch;line-height:1.55;}
 [contenteditable="true"]{outline:none;border-radius:5px;padding:2px 4px;margin:-2px -4px;cursor:text;transition:background .12s ease, box-shadow .12s ease;}
