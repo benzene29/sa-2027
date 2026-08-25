@@ -241,6 +241,7 @@ function normalizeTravel(region) {
 
 function normalizeAllTravel() {
   state.regions.forEach(normalizeTravel);
+  state.regions.forEach((r) => { if (r.transitBefore && r.transitBefore.mode == null) r.transitBefore.mode = ''; });
 }
 
 function renderTravel(stop) {
@@ -304,6 +305,9 @@ function renderRegionBlock(region, idx, schedule) {
     const transitDateText = schedule.valid ? (schedule.transitDates[idx] || '') : '';
     html += '<div class="transit" data-region-idx="' + idx + '">' +
       '<span class="transit-line"><input type="number" min="0" value="' + esc(t.days) + '" data-transit> <span data-unit>' + unit + '</span></span>' +
+      '<select class="transit-mode" data-transit-mode>' +
+        TRAVEL_MODES.map((o) => '<option value="' + o.value + '"' + ((t.mode || '') === o.value ? ' selected' : '') + '>' + o.label + '</option>').join('') +
+      '</select>' +
       '<span class="transit-label editable" contenteditable="true" data-placeholder="Flight / bus leg…">' + esc(t.label) + '</span>' +
       '<span class="transit-dates" data-transit-dates>' + esc(transitDateText) + '</span>' +
     '</div>';
@@ -347,7 +351,8 @@ function fixTransitAdjacency(oldOrder) {
       r.transitBefore = null;
     } else if (newPrev !== oldPrevCountry.get(r)) {
       const days = (r.transitBefore && r.transitBefore.days != null) ? r.transitBefore.days : 1;
-      r.transitBefore = { days, label: newPrev + ' → ' + r.country };
+      const mode = (r.transitBefore && r.transitBefore.mode) || '';
+      r.transitBefore = { days, mode, label: newPrev + ' → ' + r.country };
     }
   });
 }
@@ -992,7 +997,7 @@ function removeRegion(regionIdx) {
 }
 
 function addCountry() {
-  state.regions.push({ country: 'New Country', name: 'New Region', deletable: true, transitBefore: { days: 1, label: '' }, stops: [] });
+  state.regions.push({ country: 'New Country', name: 'New Region', deletable: true, transitBefore: { days: 1, mode: '', label: '' }, stops: [] });
   renderApp();
   scheduleSave();
   const idx = state.regions.length - 1;
@@ -1045,6 +1050,15 @@ function onChange(e) {
     const found = findStopByKey(key);
     if (found && found.stop.travelBefore) {
       found.stop.travelBefore.mode = e.target.value;
+      scheduleSave();
+    }
+    return;
+  }
+  if (e.target.matches('[data-transit-mode]')) {
+    const idx = parseInt(e.target.closest('.transit').dataset.regionIdx, 10);
+    const region = state.regions[idx];
+    if (region && region.transitBefore) {
+      region.transitBefore.mode = e.target.value;
       scheduleSave();
     }
   }
