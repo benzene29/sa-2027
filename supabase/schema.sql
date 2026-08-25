@@ -17,16 +17,25 @@ alter table public.profiles add column if not exists active_stop_id text;
 
 alter table public.profiles enable row level security;
 
+-- Postgres has no "create policy if not exists", so drop-then-create is what
+-- makes this whole file safe to paste and run again on a project that
+-- already has these policies (a plain "create policy" would fail on the
+-- name collision — and since the SQL editor runs a pasted script as one
+-- implicit transaction, that failure rolls back every statement before it
+-- in the same run too, including any column additions above).
+drop policy if exists "profiles are viewable by any signed-in user" on public.profiles;
 create policy "profiles are viewable by any signed-in user"
   on public.profiles for select
   to authenticated
   using (true);
 
+drop policy if exists "users can create their own profile" on public.profiles;
 create policy "users can create their own profile"
   on public.profiles for insert
   to authenticated
   with check (auth.uid() = id);
 
+drop policy if exists "users can update their own profile" on public.profiles;
 create policy "users can update their own profile"
   on public.profiles for update
   to authenticated
@@ -44,17 +53,20 @@ create table if not exists public.trip_state (
 
 alter table public.trip_state enable row level security;
 
+drop policy if exists "trip state is viewable by any signed-in user" on public.trip_state;
 create policy "trip state is viewable by any signed-in user"
   on public.trip_state for select
   to authenticated
   using (true);
 
+drop policy if exists "trip state is editable by any signed-in user" on public.trip_state;
 create policy "trip state is editable by any signed-in user"
   on public.trip_state for update
   to authenticated
   using (true)
   with check (true);
 
+drop policy if exists "trip state can be seeded by any signed-in user" on public.trip_state;
 create policy "trip state can be seeded by any signed-in user"
   on public.trip_state for insert
   to authenticated
