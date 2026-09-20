@@ -122,7 +122,6 @@ h1{font-family:'Jost',sans-serif;font-weight:700;font-size:clamp(28px,4vw,40px);
   content:"→";position:absolute;right:-19px;top:50%;transform:translateY(-50%);
   color:var(--ink-soft);font-size:13px;pointer-events:none;
 }
-.country-chip.pinned{background:var(--paper-2);}
 .country-chip.dragging{cursor:grabbing;box-shadow:0 10px 24px rgba(0,0,0,.22);background:var(--card);}
 .chip-handle{cursor:grab;color:var(--ink-soft);font-size:14px;line-height:1;user-select:none;touch-action:none;}
 .chip-label{display:flex;flex-direction:column;line-height:1.2;}
@@ -197,7 +196,6 @@ section.region{position:relative;margin-bottom:6px;}
 .stop-gap{box-sizing:border-box;position:relative;border-bottom:1px solid var(--line);background:var(--hover-tint);}
 .stop-gap::before{content:"";position:absolute;inset:4px;border:1.5px dashed var(--sienna);border-radius:6px;}
 .stop-handle{cursor:grab;color:var(--ink-soft);font-size:13px;line-height:1;user-select:none;touch-action:none;margin-top:3px;}
-.stop-handle.locked{visibility:hidden;}
 .stop input[type="checkbox"]{width:16px;height:16px;accent-color:var(--sienna);cursor:pointer;margin-top:2px;}
 .stop-name{font-weight:500;font-size:14.5px;}
 .stop-note{font-size:12px;color:var(--ink-soft);margin-top:1px;}

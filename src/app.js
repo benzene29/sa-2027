@@ -41,15 +41,15 @@ const DEFAULT_TRIP = {
   "votes": {},
   "pins": {"scl-arrival":{"x":24.03,"y":67.02},"bog":{"x":16.97,"y":12.28},"ctg":{"x":13.99,"y":4.13},"med":{"x":13.89,"y":10.07},"mindo":{"x":7.26,"y":18.96},"cotopaxi":{"x":7.94,"y":20.01},"banos":{"x":7.96,"y":21.03},"cuenca":{"x":6.79,"y":23.2},"cusco":{"x":21.3,"y":38.44},"rainbow":{"x":22.69,"y":38.9},"mp":{"x":20.1,"y":37.91},"santacruz":{"x":9.82,"y":32.71},"huayhuash":{"x":11.18,"y":33.77},"arequipa":{"x":22.19,"y":42.56},"colca":{"x":21.55,"y":41.41},"tambopata":{"x":26.81,"y":37.44},"ica":{"x":13.54,"y":39.22},"sucre":{"x":35.16,"y":46.36},"saltflats":{"x":30.55,"y":47.91},"atacama":{"x":29.09,"y":51.9},"chalten":{"x":19.4,"y":89.79},"ba":{"x":49.36,"y":68.67},"iguazu":{"x":57.5,"y":55.87},"rio":{"x":80.76,"y":51.9},"paraty":{"x":77.59,"y":52.34}},
   "regions": [
-    {"country":"Chile","name":"Arrival from Auckland","deletable":false,"transitBefore":null,"stops":[{"id":"scl-arrival","name":"Santiago (landing)","note":"Long-haul from Auckland — set to 0 if it's a same-day connection, bump up if you want a night to recover","noteText":"","days":0,"included":true,"locked":true}]},
-    {"country":"Colombia","name":"Caribbean & the Andes","deletable":false,"transitBefore":{"days":1,"label":"Santiago → Bogotá"},"stops":[{"id":"bog","name":"Bogotá (arrival)","note":"Gateway in, ease into altitude","noteText":"","days":1,"included":true,"locked":true},{"id":"ctg","name":"Cartagena","note":"Old town + Caribbean coast","noteText":"","days":2,"included":true,"locked":false},{"id":"med","name":"Medellín","note":"Vibrant city, day trips out","noteText":"","days":2,"included":true,"locked":false}]},
-    {"country":"Ecuador","name":"Cloud Forest to Volcanoes","deletable":true,"transitBefore":{"days":1,"label":"Colombia → Ecuador"},"stops":[{"id":"mindo","name":"Mindo Cloud Forest","note":"Zipline / tubing, easy add-on","noteText":"","days":1,"included":true,"locked":false},{"id":"cotopaxi","name":"Cotopaxi Volcano","note":"2-day guided climb, ~$150pp — group mostly Maybe","noteText":"","days":2,"included":false,"locked":false},{"id":"banos","name":"Baños","note":"Adventure capital","noteText":"","days":2,"included":true,"locked":false},{"id":"cuenca","name":"Cuenca","note":"Colonial city, easy stop","noteText":"","days":1,"included":true,"locked":false}]},
-    {"country":"Peru","name":"Andes & Amazon","deletable":true,"transitBefore":{"days":1,"label":"Ecuador → Peru"},"stops":[{"id":"cusco","name":"Cusco","note":"Base for the region, acclimatize here","noteText":"","days":3,"included":true,"locked":false},{"id":"rainbow","name":"Rainbow Mountain","note":"Day trip from Cusco","noteText":"","days":1,"included":true,"locked":false},{"id":"mp","name":"Machu Picchu","note":"Train + site — book early, gets pricey","noteText":"","days":2,"included":true,"locked":false},{"id":"santacruz","name":"Santa Cruz Trek","note":"4 days / 3 nights camping","noteText":"","days":4,"included":true,"locked":false},{"id":"huayhuash","name":"Mini Huayhuash Hike","note":"4 days / 3 nights, high altitude — mostly Maybe","noteText":"","days":4,"included":false,"locked":false},{"id":"arequipa","name":"Arequipa","note":"White city, culture","noteText":"","days":2,"included":true,"locked":false},{"id":"colca","name":"Colca Canyon","note":"Condors, flexible day/night","noteText":"","days":2,"included":true,"locked":false},{"id":"tambopata","name":"Tambopata","note":"Amazon rainforest — mostly Maybe","noteText":"","days":3,"included":false,"locked":false},{"id":"ica","name":"Ica + Nazca","note":"Lines + dunes, on the way from Lima","noteText":"","days":2,"included":true,"locked":false}]},
-    {"country":"Bolivia","name":"Sucre & the Salt Flats","deletable":true,"transitBefore":{"days":1,"label":"Peru → Bolivia"},"stops":[{"id":"sucre","name":"Sucre","note":"White city, easy day or two","noteText":"","days":2,"included":true,"locked":false},{"id":"saltflats","name":"Salt Flats 4WD","note":"3 nights / 2 days, tour ends in Chile","noteText":"","days":3,"included":true,"locked":false}]},
-    {"country":"Chile","name":"Atacama","deletable":true,"transitBefore":{"days":0,"label":"Bolivia → Chile (salt flat tour drops you in San Pedro)"},"stops":[{"id":"atacama","name":"San Pedro de Atacama","note":"Base for Valle de la Luna, desert & stargazing","noteText":"","days":3,"included":true,"locked":false}]},
-    {"country":"Argentina","name":"Patagonia & Buenos Aires","deletable":true,"transitBefore":{"days":2,"label":"Chile → Patagonia (via Santiago)"},"stops":[{"id":"chalten","name":"El Chaltén + Los Glaciares","note":"Hiking capital + Perito Moreno area","noteText":"","days":3,"included":true,"locked":false},{"id":"ba","name":"Buenos Aires","note":"Boca Juniors game","noteText":"","days":2,"included":true,"locked":false}]},
-    {"country":"Argentina / Brazil","name":"Iguazu Falls","deletable":true,"transitBefore":{"days":1,"label":"Buenos Aires → Iguazu"},"stops":[{"id":"iguazu","name":"Iguazu Falls","note":"Both sides if time allows","noteText":"","days":2,"included":true,"locked":false}]},
-    {"country":"Brazil","name":"Atlantic Coast","deletable":true,"transitBefore":{"days":1,"label":"Iguazu → Rio"},"stops":[{"id":"rio","name":"Rio de Janeiro","note":"Christ the Redeemer + Maracanã","noteText":"","days":3,"included":true,"locked":false},{"id":"paraty","name":"Paraty","note":"Colonial coastal town","noteText":"","days":2,"included":true,"locked":false}]}
+    {"country":"Chile","name":"Arrival from Auckland","transitBefore":null,"stops":[{"id":"scl-arrival","name":"Santiago (landing)","note":"Long-haul from Auckland — set to 0 if it's a same-day connection, bump up if you want a night to recover","noteText":"","days":0,"included":true}]},
+    {"country":"Colombia","name":"Caribbean & the Andes","transitBefore":{"days":1,"label":"Santiago → Bogotá"},"stops":[{"id":"bog","name":"Bogotá (arrival)","note":"Gateway in, ease into altitude","noteText":"","days":1,"included":true},{"id":"ctg","name":"Cartagena","note":"Old town + Caribbean coast","noteText":"","days":2,"included":true},{"id":"med","name":"Medellín","note":"Vibrant city, day trips out","noteText":"","days":2,"included":true}]},
+    {"country":"Ecuador","name":"Cloud Forest to Volcanoes","transitBefore":{"days":1,"label":"Colombia → Ecuador"},"stops":[{"id":"mindo","name":"Mindo Cloud Forest","note":"Zipline / tubing, easy add-on","noteText":"","days":1,"included":true},{"id":"cotopaxi","name":"Cotopaxi Volcano","note":"2-day guided climb, ~$150pp — group mostly Maybe","noteText":"","days":2,"included":false},{"id":"banos","name":"Baños","note":"Adventure capital","noteText":"","days":2,"included":true},{"id":"cuenca","name":"Cuenca","note":"Colonial city, easy stop","noteText":"","days":1,"included":true}]},
+    {"country":"Peru","name":"Andes & Amazon","transitBefore":{"days":1,"label":"Ecuador → Peru"},"stops":[{"id":"cusco","name":"Cusco","note":"Base for the region, acclimatize here","noteText":"","days":3,"included":true},{"id":"rainbow","name":"Rainbow Mountain","note":"Day trip from Cusco","noteText":"","days":1,"included":true},{"id":"mp","name":"Machu Picchu","note":"Train + site — book early, gets pricey","noteText":"","days":2,"included":true},{"id":"santacruz","name":"Santa Cruz Trek","note":"4 days / 3 nights camping","noteText":"","days":4,"included":true},{"id":"huayhuash","name":"Mini Huayhuash Hike","note":"4 days / 3 nights, high altitude — mostly Maybe","noteText":"","days":4,"included":false},{"id":"arequipa","name":"Arequipa","note":"White city, culture","noteText":"","days":2,"included":true},{"id":"colca","name":"Colca Canyon","note":"Condors, flexible day/night","noteText":"","days":2,"included":true},{"id":"tambopata","name":"Tambopata","note":"Amazon rainforest — mostly Maybe","noteText":"","days":3,"included":false},{"id":"ica","name":"Ica + Nazca","note":"Lines + dunes, on the way from Lima","noteText":"","days":2,"included":true}]},
+    {"country":"Bolivia","name":"Sucre & the Salt Flats","transitBefore":{"days":1,"label":"Peru → Bolivia"},"stops":[{"id":"sucre","name":"Sucre","note":"White city, easy day or two","noteText":"","days":2,"included":true},{"id":"saltflats","name":"Salt Flats 4WD","note":"3 nights / 2 days, tour ends in Chile","noteText":"","days":3,"included":true}]},
+    {"country":"Chile","name":"Atacama","transitBefore":{"days":0,"label":"Bolivia → Chile (salt flat tour drops you in San Pedro)"},"stops":[{"id":"atacama","name":"San Pedro de Atacama","note":"Base for Valle de la Luna, desert & stargazing","noteText":"","days":3,"included":true}]},
+    {"country":"Argentina","name":"Patagonia & Buenos Aires","transitBefore":{"days":2,"label":"Chile → Patagonia (via Santiago)"},"stops":[{"id":"chalten","name":"El Chaltén + Los Glaciares","note":"Hiking capital + Perito Moreno area","noteText":"","days":3,"included":true},{"id":"ba","name":"Buenos Aires","note":"Boca Juniors game","noteText":"","days":2,"included":true}]},
+    {"country":"Argentina / Brazil","name":"Iguazu Falls","transitBefore":{"days":1,"label":"Buenos Aires → Iguazu"},"stops":[{"id":"iguazu","name":"Iguazu Falls","note":"Both sides if time allows","noteText":"","days":2,"included":true}]},
+    {"country":"Brazil","name":"Atlantic Coast","transitBefore":{"days":1,"label":"Iguazu → Rio"},"stops":[{"id":"rio","name":"Rio de Janeiro","note":"Christ the Redeemer + Maracanã","noteText":"","days":3,"included":true},{"id":"paraty","name":"Paraty","note":"Colonial coastal town","noteText":"","days":2,"included":true}]}
   ]
 };
 
@@ -407,15 +407,13 @@ function renderStop(stop, schedule) {
   const excludedClass = stop.included ? '' : ' excluded';
   const checked = stop.included ? ' checked' : '';
   const disabledDay = stop.included ? '' : ' disabled';
-  const deleteBtn = stop.locked ? '' : '<button type="button" class="link-btn danger" data-delete>Remove</button>';
+  const deleteBtn = '<button type="button" class="link-btn danger" data-delete>Remove</button>';
   const dateInfo = schedule.valid ? schedule.stopDates[stop.id] : null;
   const dateText = dateInfo ? fmtRange(dateInfo.start, dateInfo.end) : '';
-  const handle = stop.locked
-    ? '<span class="stop-handle locked" aria-hidden="true"></span>'
-    : '<span class="stop-handle" aria-hidden="true" title="Drag to reorder">⠿</span>';
+  const handle = '<span class="stop-handle" aria-hidden="true" title="Drag to reorder">⠿</span>';
   return '<div class="stop' + excludedClass + '" data-key="' + esc(stop.id) + '">' +
     handle +
-    '<input type="checkbox" data-toggle' + checked + (stop.locked ? ' disabled' : '') + '>' +
+    '<input type="checkbox" data-toggle' + checked + '>' +
     '<div>' +
       '<div class="stop-name editable" contenteditable="true" data-placeholder="Name this activity…">' + esc(stop.name) + '</div>' +
       '<div class="stop-note editable" contenteditable="true" data-placeholder="Add a short description…">' + esc(stop.note) + '</div>' +
@@ -448,7 +446,7 @@ function renderRegionBlock(region, idx, schedule) {
       '<span class="transit-dates" data-transit-dates>' + esc(transitDateText) + '</span>' +
     '</div>';
   }
-  const delRegionBtn = region.deletable ? '<button type="button" class="link-btn danger" data-delete-region>Remove country</button>' : '';
+  const delRegionBtn = '<button type="button" class="link-btn danger" data-delete-region>Remove country</button>';
   const regionTotal = region.stops.reduce((sum, s) => sum + (s.included ? Math.max(0, s.days || 0) : 0), 0);
   const span = schedule.valid ? schedule.regionSpans[idx] : null;
   const regionDateText = span ? fmtRange(span.start, span.end) : '';
@@ -470,9 +468,8 @@ function renderRegionBlock(region, idx, schedule) {
 
 function renderChipRow() {
   return state.regions.map((region, idx) => {
-    const pinned = !region.deletable;
-    return '<div class="country-chip' + (pinned ? ' pinned' : '') + '" data-region-idx="' + idx + '" data-pinned="' + (pinned ? '1' : '0') + '">' +
-      (pinned ? '' : '<span class="chip-handle" aria-hidden="true" title="Drag to reorder">⠿</span>') +
+    return '<div class="country-chip" data-region-idx="' + idx + '">' +
+      '<span class="chip-handle" aria-hidden="true" title="Drag to reorder">⠿</span>' +
       '<span class="chip-label"><span class="chip-country">' + esc(region.country) + '</span><span class="chip-region">' + esc(region.name) + '</span></span>' +
     '</div>';
   }).join('');
@@ -502,12 +499,10 @@ function onChipPointerDown(e) {
   const handle = e.target.closest('.chip-handle');
   if (!handle) return;
   const chipEl = handle.closest('.country-chip');
-  if (!chipEl || chipEl.dataset.pinned === '1') return;
+  if (!chipEl) return;
   const idx = parseInt(chipEl.dataset.regionIdx, 10);
   const region = state.regions[idx];
   if (!region) return;
-  let minIdx = 0;
-  while (minIdx < state.regions.length && !state.regions[minIdx].deletable) minIdx++;
 
   const chipRowEl = chipEl.parentElement;
   const rect = chipEl.getBoundingClientRect();
@@ -528,12 +523,12 @@ function onChipPointerDown(e) {
   chipEl.style.pointerEvents = 'none'; // so elementFromPoint below hits the chip underneath, not the dragged one
 
   dragState = {
-    region, chipEl, chipRowEl, gap, minIdx,
+    region, chipEl, chipRowEl, gap,
     startClientX: e.clientX,
     startClientY: e.clientY,
     baseLeft: rect.left,
     baseTop: rect.top,
-    currentIdx: Math.max(0, idx - minIdx),
+    currentIdx: idx,
     originalOrder: state.regions.slice(),
   };
   try { handle.setPointerCapture(e.pointerId); } catch (err) {}
@@ -549,18 +544,17 @@ function onChipPointerMove(e) {
   const siblings = chipSiblings(d); // real chips excluding the dragged one and the gap
   const el = document.elementFromPoint(e.clientX, e.clientY);
   const overChip = el ? el.closest('.country-chip') : null;
-  if (!overChip || overChip.dataset.pinned === '1' || siblings.indexOf(overChip) === -1) return;
+  if (!overChip || siblings.indexOf(overChip) === -1) return;
   const overIdx = siblings.indexOf(overChip);
-  if (overIdx < d.minIdx) return;
   const r = overChip.getBoundingClientRect();
   const before = e.clientX < r.left + r.width / 2;
-  let idx = before ? overIdx - d.minIdx : overIdx - d.minIdx + 1;
-  idx = Math.max(0, Math.min(siblings.length - d.minIdx, idx));
+  let idx = before ? overIdx : overIdx + 1;
+  idx = Math.max(0, Math.min(siblings.length, idx));
   if (idx === d.currentIdx) return;
   d.currentIdx = idx;
 
   flipMove(siblings, () => {
-    const beforeEl = siblings[d.minIdx + idx] || null;
+    const beforeEl = siblings[idx] || null;
     d.chipRowEl.insertBefore(d.gap, beforeEl);
   });
 }
@@ -574,7 +568,7 @@ function onChipPointerUp() {
 
   const fromIdx = state.regions.indexOf(d.region);
   const others = state.regions.filter((r) => r !== d.region);
-  const targetIdx = Math.min(d.minIdx + d.currentIdx, others.length);
+  const targetIdx = Math.min(d.currentIdx, others.length);
   others.splice(targetIdx, 0, d.region);
   const oldOrder = d.originalOrder;
   state.regions = others;
@@ -614,15 +608,13 @@ function stopSiblings(d) {
 
 function onStopPointerDown(e) {
   const handle = e.target.closest('.stop-handle');
-  if (!handle || handle.classList.contains('locked')) return;
+  if (!handle) return;
   const stopEl = handle.closest('.stop');
   const regionEl = stopEl.closest('.region');
   const regionIdx = parseInt(regionEl.dataset.regionIdx, 10);
   const region = state.regions[regionIdx];
   const stop = region.stops.find((s) => s.id === stopEl.dataset.key);
   if (!stop) return;
-  let minIdx = 0;
-  while (minIdx < region.stops.length && region.stops[minIdx].locked) minIdx++;
 
   const stopsEl = stopEl.parentElement;
   const rect = stopEl.getBoundingClientRect();
@@ -641,10 +633,10 @@ function onStopPointerDown(e) {
   stopEl.style.zIndex = '60';
 
   stopDragState = {
-    regionIdx, region, stop, stopEl, stopsEl, gap, minIdx,
+    regionIdx, region, stop, stopEl, stopsEl, gap,
     startClientY: e.clientY,
     baseTop: rect.top,
-    currentIdx: region.stops.indexOf(stop) - minIdx >= 0 ? region.stops.indexOf(stop) - minIdx : 0,
+    currentIdx: region.stops.indexOf(stop),
   };
   try { handle.setPointerCapture(e.pointerId); } catch (err) {}
   e.preventDefault();
@@ -656,16 +648,16 @@ function onStopPointerMove(e) {
   d.stopEl.style.top = (d.baseTop + (e.clientY - d.startClientY)) + 'px';
 
   const siblings = stopSiblings(d); // real stops, excluding the dragged one and the gap
-  let idx = siblings.length - d.minIdx;
-  for (let i = d.minIdx; i < siblings.length; i++) {
+  let idx = siblings.length;
+  for (let i = 0; i < siblings.length; i++) {
     const r = siblings[i].getBoundingClientRect();
-    if (e.clientY < r.top + r.height / 2) { idx = i - d.minIdx; break; }
+    if (e.clientY < r.top + r.height / 2) { idx = i; break; }
   }
   if (idx === d.currentIdx) return;
   d.currentIdx = idx;
 
   flipMove(siblings, () => {
-    const before = siblings[d.minIdx + idx] || null;
+    const before = siblings[idx] || null;
     d.stopsEl.insertBefore(d.gap, before);
   });
 }
@@ -679,7 +671,7 @@ function onStopPointerUp() {
 
   const fromIdx = d.region.stops.indexOf(d.stop);
   const others = d.region.stops.filter((s) => s !== d.stop);
-  const targetIdx = Math.min(d.minIdx + d.currentIdx, others.length);
+  const targetIdx = Math.min(d.currentIdx, others.length);
   others.splice(targetIdx, 0, d.stop);
   d.region.stops = others;
   normalizeTravel(d.region);
@@ -753,7 +745,7 @@ function renderApp() {
       '<span id="tripDatesFigure" class="trip-dates-figure">' + esc(tripDatesText) + '</span></div>' +
     '</div>' +
     '<section class="route-overview">' +
-      '<div class="map-head"><h2 class="map-title">Route order</h2><p class="map-hint">Drag a country to reorder it — the map, dates, and directions all follow. The arrival leg stays fixed at the start.</p></div>' +
+      '<div class="map-head"><h2 class="map-title">Route order</h2><p class="map-hint">Drag a country to reorder it — the map, dates, and directions all follow.</p></div>' +
       '<div class="chip-row" id="chipRow">' + renderChipRow() + '</div>' +
     '</section>' +
     '<section class="map-section">' +
@@ -1124,7 +1116,7 @@ function addStop(regionIdx) {
   const region = state.regions[regionIdx];
   if (!region) return;
   const key = uid('stop');
-  region.stops.push({ id: key, name: 'New activity', note: '', noteText: '', days: 1, included: true, locked: false });
+  region.stops.push({ id: key, name: 'New activity', note: '', noteText: '', days: 1, included: true });
   normalizeTravel(region);
   renderApp();
   scheduleSave();
@@ -1149,12 +1141,16 @@ function removeRegion(regionIdx) {
   if (!region) return;
   region.stops.forEach((s) => { delete state.pins[s.id]; if (placingKey === s.id) stopPlacing(); });
   state.regions.splice(regionIdx, 1);
+  // Whatever's left at position 0 has nothing before it now, even if it used
+  // to (e.g. deleting the old first region shouldn't leave the new first one
+  // showing a stale "flight in from the old first region" transit leg).
+  if (state.regions[0]) state.regions[0].transitBefore = null;
   renderApp();
   scheduleSave();
 }
 
 function addCountry() {
-  state.regions.push({ country: 'New Country', name: 'New Region', deletable: true, transitBefore: { days: 1, mode: '', price: 0, label: '' }, stops: [] });
+  state.regions.push({ country: 'New Country', name: 'New Region', transitBefore: { days: 1, mode: '', price: 0, label: '' }, stops: [] });
   renderApp();
   scheduleSave();
   const idx = state.regions.length - 1;
